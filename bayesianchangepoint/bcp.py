@@ -1,4 +1,5 @@
 # -*- coding: utf8 -*-
+from __future__ import print_function, division
 """
 
     url='https://github.com/laurentperrinet/bayesianchangepoint',
@@ -29,8 +30,6 @@ which is itself adapted from the matlab code @
 
 
 """
-
-from __future__ import print_function, division
 import numpy as np
 
 def likelihood(o, p, r):
@@ -107,7 +106,7 @@ def inference(o, h, p0=.5, verbose=False):
         # the vector of the different run-length at time t+1
         # it has size t+2 to represent all possible run lengths
         r[:(t+1), t] = np.arange(0, t+1)
-        
+
         # Evaluate the predictive distribution for the next datum assuming that
         # we know the sufficient statistics of the pdf that generated the datum.
         # This probability is computed over the set of possible run-lengths.
@@ -169,19 +168,29 @@ def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_la
 
     return (trials, p)
 
+def readout(p_bar, r, beliefs, mode='expectation'):
+    if mode=='expectation':
+        p_hat = np.sum(p_bar[:, 1:] * beliefs[:, :-1], axis=0)
+        r_hat = np.sum(r * beliefs, axis=0)[:-1]
+    elif mode=='max':
+        belief_max = np.argmax(beliefs, axis=0)[:-1]
+        p_hat = [p_bar[belief_max[i], i+1] for i in range(belief_max.size)]
+        r_hat = belief_max
+    # TODO : implement elif mode=='hindsight':
+    return p_hat, r_hat
 
-def plot_inference(o, p_true, p_bar, r, beliefs, mode=None, fig=None, axs=None, fig_width=13, max_run_length=120):
+def plot_inference(o, p_true, p_bar, r, beliefs, mode='expectation', fig=None, axs=None, fig_width=13, max_run_length=120):
     import matplotlib.pyplot as plt
-
     N_trials = o.size
-    p_hat = np.sum(p_bar[:, 1:] * beliefs[:, :-1], axis=0)
-    r_hat = np.sum(r * beliefs, axis=0)
 
     if fig is None:
         fig_width= fig_width
         fig, axs = plt.subplots(2, 1, figsize=(fig_width, fig_width/1.6180), sharex=True)
     axs[0].step(range(N_trials), o, lw=1, alpha=.9, c='k')
-    axs[0].step(range(N_trials), p_true, lw=1, alpha=.9, c='b')
+    if not p_true is None:
+        axs[0].step(range(N_trials), p_true, lw=1, alpha=.9, c='b')
+
+    p_hat, r_hat = readout(p_bar, r, beliefs, mode=mode)
     from scipy.stats import beta
     p_low, p_sup = np.zeros_like(p_hat), np.zeros_like(p_hat)
     for i_trial in range(N_trials):
@@ -191,7 +200,7 @@ def plot_inference(o, p_true, p_bar, r, beliefs, mode=None, fig=None, axs=None, 
     axs[0].plot(range(N_trials), p_sup, 'r--', lw=1, alpha=.9)
     axs[0].plot(range(N_trials), p_low, 'r--', lw=1, alpha=.9)
     axs[1].imshow(np.log(beliefs[:max_run_length, :] + 1.e-5 ))
-    axs[1].plot(range(N_trials), r_hat[:-1], lw=1, alpha=.9, c='r')
+    axs[1].plot(range(N_trials), r_hat, lw=1, alpha=.9, c='r')
 
     fig.tight_layout()
     for i_layer, label in zip(range(2), ['p_hat +/- CI', 'belief on r = p(r)']):
