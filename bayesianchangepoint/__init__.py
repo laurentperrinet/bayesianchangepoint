@@ -1,1 +1,1 @@
-from bayesianchangepoint import *
+from .bcp import *

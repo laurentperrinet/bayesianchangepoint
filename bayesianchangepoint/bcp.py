@@ -23,7 +23,7 @@
     author='Jack Kelly',
     author_email='jack@jack-kelly.com',
 
-which is irtself adapted from the matlab code @
+which is itself adapted from the matlab code @
 
     http://hips.seas.harvard.edu/content/bayesian-online-changepoint-detection
 
@@ -67,7 +67,7 @@ def studentpdf(x, mu, var, nu):
     return c
 
 
-def inference(o, h, p0=.5, verbose=True):
+def inference(o, h, p0=.5, verbose=False):
     """
     Args:
       * o (np.ndarray): data has given in a sequence of observations as a
@@ -190,6 +190,8 @@ def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_la
 
 
 def plot_inference(o, p_true, p_bar, r, beliefs, mode=None, fig=None, axs=None, fig_width=13, max_run_length=120):
+    import matplotlib.pyplot as plt
+
     N_trials = o.size
     p_hat = np.sum(p_bar[:, 1:] * beliefs[:, :-1], axis=0)
     r_hat = np.sum(r * beliefs, axis=0)
