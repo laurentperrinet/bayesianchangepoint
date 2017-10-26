@@ -169,12 +169,20 @@ def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_la
     return (trials, p)
 
 def readout(p_bar, r, beliefs, mode='expectation'):
+    """
+    Retrieves a readout given a probabilistic representation
+
+    Different modes are available:
+    - 'expectation' : gives the average value of the estimated
+    - 'max' : gives the most liklelikely values at each time,
+
+    """
     if mode=='expectation':
         p_hat = np.sum(p_bar[:, 1:] * beliefs[:, :-1], axis=0)
         r_hat = np.sum(r * beliefs, axis=0)[:-1]
     elif mode=='max':
         belief_max = np.argmax(beliefs, axis=0)[:-1]
-        p_hat = [p_bar[belief_max[i], i+1] for i in range(belief_max.size)]
+        p_hat = np.array([p_bar[belief_max[i], i+1] for i in range(belief_max.size)])
         r_hat = belief_max
     # TODO : implement elif mode=='hindsight':
     return p_hat, r_hat
