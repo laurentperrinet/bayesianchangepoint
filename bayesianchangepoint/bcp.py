@@ -1,5 +1,8 @@
 # -*- coding: utf8 -*-
 """
+
+    url='https://github.com/laurentperrinet/bayesianchangepoint',
+
  An implementation of:
  @TECHREPORT{ adams-mackay-2007,
     AUTHOR = {Ryan Prescott Adams and David J.C. MacKay},
@@ -9,40 +12,44 @@
     YEAR = "2007",
     NOTE = "arXiv:0710.3742v1 [stat.ML]"
  }
+
+ for a binomial input.
+
+ adapted from
+    url='https://github.com/JackKelly/bayesianchangepoint',
+
+ by
+    Copyright 2013 Jack Kelly (aka Daniel) jack@jack-kelly.com
+    author='Jack Kelly',
+    author_email='jack@jack-kelly.com',
+
+which is irtself adapted from the matlab code @
+
+    http://hips.seas.harvard.edu/content/bayesian-online-changepoint-detection
+
+
 """
+
 from __future__ import print_function, division
 import numpy as np
-from numpy.random import gamma, randn, rand
-from scipy.special import gammaln
-import matplotlib.pyplot as plt
+#from numpy.random import gamma, randn, rand
+#from scipy.special import gammaln
+#import matplotlib.pyplot as plt
 
-
-def constant_hazard(r, _lambda):
+def likelihood(o, p, r):
     """
-    A simple constant-rate hazard function that gives geomtrically-drawn
-    intervals between changepoints.  We'll specify the rate via a mean.
+    Knowing p and r, the likelihood of observing o is that of a binomial of
 
-    To quote the paper (section 2.1: "THE CHANGEPOINT PRIOR"):
+        - mean rate of chosing 1 = (p*r + o)/(r+1)
+        - number of choices = 1 equal to p*r+1
 
-        "In the special case where P_{gap}(g) is a discrete exponential
-        (geometric) distribution with timescale lambda, the process is
-        memoryless and the hazard function is constant at H(tau) = 1/lambda"
+    since both likelihood sum to 1, the likelihood of drawing o in {0, 1}
+    is equal to
 
-    Args:
-      * r (np.ndarray or scalar)
-      * _lambda (float)
-
-    Returns:
-      * p (np.ndarray with shape = r.shape): probability of a changepoint
     """
-    if isinstance(r, np.ndarray):
-        shape = r.shape
-    else:
-        shape = 1
-
-    probability = np.ones(shape) / _lambda
-    return probability
-
+    L =  (1-o) * (1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) + o * (1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
+    L /=         (1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) +     (1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
+    return L
 
 def studentpdf(x, mu, var, nu):
     """
@@ -60,195 +67,158 @@ def studentpdf(x, mu, var, nu):
     return c
 
 
-def row_to_column_vector(row_vector):
-    return np.matrix(row_vector).transpose()
-
-
-def inference(x, hazard_func, mu0=0, kappa0=1, alpha0=1, beta0=1):
+def inference(o, h, p0=.5, verbose=True):
     """
     Args:
-      * x (np.ndarray): data
-      * hazard_func (function):
-        This is a handle to a function that takes one argument, the number of
-        time increments since the last changepoint, and returns a value in the
-        interval [0,1] that is the probability of a changepoint.
-        e.g. hazard_func=lambda beliefs: constant_hazard(beliefs, 200)
+      * o (np.ndarray): data has given in a sequence of observations as a
+        function of (dicscrete) time (or trials). The totla number of trials
+        is T.
 
-      * mu0, kappa0, alpha0, beta0 (float): specify normal-inverse-gamma prior.
-        This data is Gaussian with unknown mean and variance.  We are going to
-        use the standard conjugate prior of a normal-inverse-gamma.  Note that
+      * h (float): hazard rate, a value in the interval [0,1] that is the
+        probability of a changepoint at any given time.
+
+      * p0, r0 (float, float): specify initial values for beta-distribution.
+
+      * alpha0, beta0 (float, float): specify prior beta-distribution for p.
+        This data is Binomial with unknown mean.  We are going to
+        use the standard conjugate prior of a beta-ditribution. ** Note that
         one cannot use non-informative priors for changepoint detection in
-        this construction.  The normal-inverse-gamma yields a closed-form
-        predictive distribution, which makes it easy to use in this context.
-        There are lots of references out there for doing this kind of inference:
-          - Chris Bishop's "Pattern Recognition and Machine Learning" Chapter 2
-          - Also, Kevin Murphy's lecture notes.
+        this construction.  The beta-ditribution yields a closed-form
+        predictive distribution, which makes it easy to use in this context. **
+
+    Output:
+      * beliefs (np.ndarray): beliefs about the current run lengths, the first
+          axis (one row) is the probability vector at any given time. This vector
+          is of length at maximum T( the maximal run length). It represents the
+          probability of a given run-length after one observation.
+
+      * p_bar (np.ndarray): mean of the prediction about p. Given the run-lengths r,
+          this gives the sufficient statistics for our belief about p at any given
+          time.
+
+            - the first axis records the estimated prebabilities
+            for the different hypothesis of run lengths
+            - the second axis is time (trials) - the system has only access to the present
+            time, but this is a convenience for plots.
+
     """
-
+    T = o.size # total number of observations
     # First, setup the matrix that will hold our beliefs about the current
-    # run lengths.  We'll initialize it all to zero at first.  Obviously
-    # we're assuming here that we know how long we're going to do the
-    # inference.  You can imagine other data structures that don't make that
-    # assumption (e.g. linked lists).  We're doing this because it's easy.
-    beliefs = np.zeros([x.size+1, x.size+1])
+    # run lengths.  We'll initialize it all to zero at first.
+    beliefs = np.zeros((T+1, T+1))
 
-    # At time t=0, we actually have complete knowledge about the run
-    # length.  It is definitely zero.  See the paper for other possible
-    # boundary conditions.  'beliefs' is called 'R' in gaussdemo.m.
-    beliefs[0,0] = 1.0
-
-    # Convert floats to arrays
-    mu0    = np.array([mu0])
-    kappa0 = np.array([kappa0])
-    alpha0 = np.array([alpha0])
-    beta0  = np.array([beta0])
+    # INITIALIZATION
+    # At time t=0, we actually have complete knowledge about the possible run
+    # length probabilities. It is zero: the corresponding probability is 1 at 0
+    # and zero elsewhere.
+    beliefs[0, 0] = 1.0
 
     # Track the current set of parameters.  These start out at the prior and
-    # accumulate data as we proceed.
-    muT    = mu0
-    kappaT = kappa0
-    alphaT = alpha0
-    betaT  = beta0
+    # we accumulate data as we proceed.
+    p_bar = np.zeros((T+1, T+1))
+    p_bar[0, 0] = p0
 
-    # Keep track of the maximums.
-    maxes  = np.zeros([x.size+1, x.size+1])
+    # matrix of run lengths
+    r = np.zeros((T+1, T+1))
 
     # Loop over the data like we're seeing it all for the first time.
-    for t in range(x.size):
+    for t in range(T):
+        # the vector of the different run-length at time t+1
+        # it has size t+2 to represent all possible run lengths
+        r[:(t+1), t] = np.arange(0, t+1) + 1
+        #r = np.arange(0, t+1)
+        # Evaluate the predictive distribution for the next datum assuming that
+        # we know the sufficient statistics of the pdf that generated the datum.
+        # This probability is computed over the set of possible run-lengths.
+        p_hat = likelihood(o[t], p_bar[:(t+1), t], r[:(t+1), t])
 
-        # Evaluate the predictive distribution for the new datum under each of
-        # the parameters.  This is the standard thing from Bayesian inference.
-        predprobs = studentpdf(x[t], muT,
-                               betaT*(kappaT+1)/(alphaT*kappaT),
-                               2 * alphaT)
-
-        # Evaluate the hazard function for this interval.
-        haz = hazard_func(np.arange(t+1))
-
-        # Evaluate the growth probabilities - shift the probabilities down and to
-        # the right, scaled by the hazard function and the predictive
+        if verbose and t <8: print('time', t, '; obs=', o[t], '; beliefs=', beliefs[:(t+1), t], '; p_hat=', p_hat, '; 1-h=', (1-h), '; p_bar=', p_bar[:(t+1), t])
+        # Evaluate the growth probabilities at
+        # it is a vector for the belief of the different run-length at time t+1
+        # knowing the datum observed until time t
+        # it has size t+2 to represent all possible run lengths up to time t along with the new datum
+        belief = np.zeros((t+2))
+        # iff there was no changepoint, shift the probabilities up in the graph
+        # scaled by the hazard function and the predictive
         # probabilities.
-        beliefs[1:t+2,t+1] = beliefs[0:t+1,t] * predprobs * (1-haz)
+        belief[1:] = beliefs[:(t+1), t] * p_hat * (1-h)
 
         # Evaluate the probability that there *was* a changepoint and we're
-        # accumulating the mass back down at beliefs = 0.
-        beliefs[0,t+1] = (beliefs[0:t+1,t] * predprobs * haz).sum()
+        # accumulating the mass back down at a run length of 0.
+        belief[0] = np.sum(beliefs[:(t+1), t] * p_hat * h)
+        #if verbose and t <8: print('belief=', belief)
+        # Renormalize the run length probabilities by calculating total evidence
+        belief = belief / np.sum(belief)
+        # record this vector
+        beliefs[:(t+2), t+1] = belief
+        if verbose and t <8: print('Note that at t', t, ', belief', belief[0], '= h = ', h)
 
-        # Renormalize the run length probabilities for improved numerical
-        # stability.
-        beliefs[:,t+1] = beliefs[:,t+1] / beliefs[:,t+1].sum()
+        # Update the sufficient statistics for each possible run length.
+        p_bar[0, t+1] = p0 # TODO : introduce Jeffrey's prior into that inference
+        for i in range(1, t+2):
+            #if verbose and t <8: print(t, i, r[i, t]+1, o[(t-i+1):(t+1)])
+            #TODO : recursive rule
+            p_bar[i, t+1] = np.mean( o[(t-i+1):(t+1)] ) #/ (r[i, t] +1)
 
-        # Update the parameter sets for each possible run length.
-        # TODO: continue porting from here...
+    return p_bar, r, beliefs
 
-        muT0    = np.concatenate([mu0   , (kappaT*muT + x[t]) / (kappaT+1) ])
-        kappaT0 = np.concatenate([kappa0, kappaT + 1 ])
-        alphaT0 = np.concatenate([alpha0, alphaT + 0.5 ])
-        betaT0  = np.concatenate([beta0 , kappaT +
-                                          (kappaT*(x[t]-muT)**2)/(2*(kappaT+1))])
-        muT     = muT0
-        kappaT  = kappaT0
-        alphaT  = alphaT0
-        betaT   = betaT0
 
-        # Store the maximum, to plot later.
-        maxes[t] = np.where(beliefs[:,t]==beliefs[:,t].max())[0]
-
-    return beliefs, maxes
-
-def generate_test_data(n, hazard_func, mu0=0, kappa0=1, alpha0=1, beta0=1):
+def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_layer=3):
     """
-    Args:
-      * n (int): number of data elements to return
-      * hazard_func, mu0, kappa0, alpha0, beta0: see doc for inference()
 
-    Returns: x, changepoints
-      * x (np.ndarray of length n): data
-      * changepoints (list of ints): indices of changepoints
+    A 3-layered model for generating samples.
+
+    about Jeffrey's prior : see https://en.wikipedia.org/wiki/Jeffreys_prior
+
     """
-    x = np.zeros(n) # this will hold the data
-    changepoints = [0] # Store the times of changepoints.  It's useful to see them.
 
-    def generate_params():
-        # Generate the parameters of the Gaussian from the prior.
-        curr_ivar = gamma(alpha0) * beta0
-        curr_mean = (((kappa0 * curr_ivar) ** -0.5) * randn()) + mu0
-        return curr_ivar, curr_mean
+    from scipy.stats import beta
+    np.random.seed(seed)
 
-    curr_ivar, curr_mean = generate_params()
-    curr_run = 0 # Initial run length is zero
-
-    # Now, loop forward in time and generate data.
-    for t in range(n):
-
-        # Get the probability of a new changepoint.
-        p = hazard_func(curr_run)
-
-        # Randomly generate a changepoint, perhaps.
-        if rand() < p:
-            # Generate new Gaussian parameters from the prior.
-            curr_ivar, curr_mean = generate_params()
-
-            # The run length drops back to zero.
-            curr_run = 0
-
-            # Add this changepoint to the end of the list.
-            changepoints.append(t)
+    trials = np.arange(N_trials)
+    p = np.random.rand(N_trials, N_blocks, N_layer)
+    for trial in trials:
+        p[trial, :, 2] = np.random.rand(1, N_blocks) < 1/tau # switch
+        if Jeffreys: #
+            p_random = beta.rvs(a=.5, b=.5, size=N_blocks)
         else:
-            # Increment the run length if there was no changepoint.
-            curr_run += 1
+            p_random = np.random.rand(1, N_blocks)
+        p[trial, :, 1] = (1 - p[trial, :, 2])*p[trial-1, :, 1] + p[trial, :, 2] * p_random # probability
+        p[trial, :, 0] =  p[trial, :, 1] > np.random.rand(1, N_blocks) # binomial
 
-        # Draw data from the current parameters.
-        x[t] = (curr_ivar ** -0.5) * randn() + curr_mean
+    return (trials, p)
 
-    return x, changepoints
 
-def test(data_input='random'):
-    # First, we will specify the prior.  We will then generate some fake data
-    # from the prior specification.  We will then perform inference. Then
-    # we'll plot some things.
+def plot_inference(o, p_true, p_bar, r, beliefs, mode=None, fig=None, axs=None, fig_width=13, max_run_length=120):
+    N_trials = o.size
+    p_hat = np.sum(p_bar[:, 1:] * beliefs[:, :-1], axis=0)
+    r_hat = np.sum(r * beliefs, axis=0)
 
-    hazard_func = lambda r: constant_hazard(r, _lambda=200)
+    if fig is None:
+        fig_width= fig_width
+        fig, axs = plt.subplots(2, 1, figsize=(fig_width, fig_width/1.6180), sharex=True)
+    axs[0].step(range(N_trials), o, lw=1, alpha=.9, c='k')
+    axs[0].step(range(N_trials), p_true, lw=1, alpha=.9, c='b')
+    from scipy.stats import beta
+    p_low, p_sup = np.zeros_like(p_hat), np.zeros_like(p_hat)
+    for i_trial in range(N_trials):
+        p_low[i_trial], p_sup[i_trial] = beta.ppf([.05, .95], a=p_hat[i_trial]*r_hat[i_trial], b=(1-p_hat[i_trial])*r_hat[i_trial])
 
-    if data_input == 'random':
-        # generate test data
-        N = 100 # how many data points to generate?
-        x, changepoints = generate_test_data(N, hazard_func)
-    elif data_input == 'ones':
-        x = np.ones(N)
-        changepoints = []
-    elif data_input == 'signature':
-        from pda.channel import Channel
-        from os import path
-        DATA_DIR = '/data/mine/domesticPowerData/BellendenRd/wattsUp'
-        #SIG_DATA_FILENAME = 'breadmaker1.csv'
-        SIG_DATA_FILENAME = 'washingmachine1.csv'
-        chan = Channel()
-        chan.load_wattsup(path.join(DATA_DIR, SIG_DATA_FILENAME))
-        x = chan.series.values[142:1647]
-        N = x.size
+    axs[0].plot(range(N_trials), p_hat, lw=1, alpha=.9, c='r')
+    axs[0].plot(range(N_trials), p_sup, 'r--', lw=1, alpha=.9)
+    axs[0].plot(range(N_trials), p_low, 'r--', lw=1, alpha=.9)
+    axs[1].imshow(np.log(beliefs[:max_run_length, :] + 1.e-5 ))
+    axs[1].plot(range(N_trials), r_hat[:-1], lw=1, alpha=.9, c='r')
 
-    # plot
-    fig = plt.figure()
-    ax = fig.add_subplot(2,1,1)
-    ax.plot(x)
-    ylim = ax.get_ylim()
-    for cp in changepoints:
-        ax.plot([cp, cp], ylim, color='k')
+    fig.tight_layout()
+    for i_layer, label in zip(range(2), ['p_hat +/- CI', 'belief on r = p(r)']):
+        axs[i_layer].set_xlim(0, N_trials)
+        axs[i_layer].set_ylim(-.05, 1 + .05)
+        axs[i_layer].axis('tight')
+#            axs[i_layer].set_yticks(np.arange(1)+.5)
+#            axs[i_layer].set_yticklabels(np.arange(1) )
+        axs[i_layer].set_ylabel(label, fontsize=14)
+        axs[i_layer].axis('tight')
+    axs[-1].set_xlabel('trials', fontsize=14);
 
-    # do inference
-    beliefs, maxes = inference(x, hazard_func)
-
-    # plot beliefs
-    beliefs = beliefs.astype(np.float32)
-    #print(beliefs)
-    ax2 = fig.add_subplot(2,1,2, sharex=ax)
-    ax2.imshow(-np.log(beliefs), interpolation='none', aspect='auto',
-               origin='lower', cmap=plt.cm.Blues)
-    ax2.plot(maxes, color='r')
-    ax2.set_xlim([0, N])
-    ax2.set_ylim([0, ax2.get_ylim()[1]])
-    plt.draw()
-    return beliefs, maxes
-
-#test()
+    return fig, axs
