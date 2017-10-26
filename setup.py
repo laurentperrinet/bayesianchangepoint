@@ -1,5 +1,5 @@
 """
-   Copyright 2013 Jack Kelly (aka Daniel)
+   Copyright 2013 Jack Kelly (aka Daniel) jack@jack-kelly.com
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@ setup(
                 ' MATLAB implementation provided by Ryan Adams.',
     author='Jack Kelly',
     author_email='jack@jack-kelly.com',
-    url='https://github.com/JackKelly/bayesianchangepoint',
-    download_url = 'https://github.com/JackKelly/bayesianchangepoint/tarball'
+    url='https://github.com/laurentperrinet/bayesianchangepoint',
+    download_url = 'https://github.com/laurentperrinet/bayesianchangepoint/tarball'
                    '/master#egg=bayesianchangepoint-dev',
     long_description=open('README.md').read(),
     license='Apache 2.0',

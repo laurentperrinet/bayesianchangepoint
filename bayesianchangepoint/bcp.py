@@ -1,3 +1,4 @@
+# -*- coding: utf8 -*-
 """
  An implementation of:
  @TECHREPORT{ adams-mackay-2007,
