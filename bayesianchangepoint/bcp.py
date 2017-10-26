@@ -32,9 +32,6 @@ which is itself adapted from the matlab code @
 
 from __future__ import print_function, division
 import numpy as np
-#from numpy.random import gamma, randn, rand
-#from scipy.special import gammaln
-#import matplotlib.pyplot as plt
 
 def likelihood(o, p, r):
     """
@@ -50,22 +47,6 @@ def likelihood(o, p, r):
     L =  (1-o) * (1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) + o * (1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
     L /=         (1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) +     (1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
     return L
-
-def studentpdf(x, mu, var, nu):
-    """
-    Returns the pdf(x) for Student T distribution.
-
-    scipy.stats.distributions.t.pdf(x=x-mu, df=nu) comes close
-    to replicating studentpdf but Kevin Murphy's studentpdf
-    function includes a 'var' variable which scipy's version does not.
-    """
-    # Using a mixture of code from studentpdf.m and
-    # scipy.stats.distributions.t_gen._pdf()
-    r = np.asarray(nu*1.0)
-    c = np.exp(gammaln((r+1)/2) - gammaln(r/2))
-    c /= np.sqrt(r * np.pi * var) * (1+((x-mu)**2)/(r*var))**((r+1)/2)
-    return c
-
 
 def inference(o, h, p0=.5, verbose=False):
     """
@@ -125,8 +106,8 @@ def inference(o, h, p0=.5, verbose=False):
     for t in range(T):
         # the vector of the different run-length at time t+1
         # it has size t+2 to represent all possible run lengths
-        r[:(t+1), t] = np.arange(0, t+1) + 1
-        #r = np.arange(0, t+1)
+        r[:(t+1), t] = np.arange(0, t+1)
+        
         # Evaluate the predictive distribution for the next datum assuming that
         # we know the sufficient statistics of the pdf that generated the datum.
         # This probability is computed over the set of possible run-lengths.
