@@ -12,7 +12,8 @@ TITLE  = "{B}ayesian Online Changepoint Detection",
 INSTITUTION = "University of Cambridge",
 ADDRESS = "Cambridge, UK",
 YEAR = "2007",
-NOTE = "arXiv:0710.3742v1 [stat.ML]"
+NOTE = "arXiv:0710.3742v1 [stat.ML]",
+URL = "http://arxiv.org/abs/0710.3742"
 }
 ````
 
