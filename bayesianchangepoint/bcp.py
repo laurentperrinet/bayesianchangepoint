@@ -194,6 +194,7 @@ def plot_inference(o, p_true, p_bar, r, beliefs, mode='expectation', fig=None, a
     if fig is None:
         fig_width= fig_width
         fig, axs = plt.subplots(2, 1, figsize=(fig_width, fig_width/1.6180), sharex=True)
+
     axs[0].step(range(N_trials), o, lw=1, alpha=.9, c='k')
     if not p_true is None:
         axs[0].step(range(N_trials), p_true, lw=1, alpha=.9, c='b')
@@ -210,7 +211,6 @@ def plot_inference(o, p_true, p_bar, r, beliefs, mode='expectation', fig=None, a
     axs[1].imshow(np.log(beliefs[:max_run_length, :] + 1.e-5 ))
     axs[1].plot(range(N_trials), r_hat, lw=1, alpha=.9, c='r')
 
-    fig.tight_layout()
     for i_layer, label in zip(range(2), ['p_hat +/- CI', 'belief on r = p(r)']):
         axs[i_layer].set_xlim(0, N_trials)
         axs[i_layer].set_ylim(-.05, 1 + .05)
@@ -220,5 +220,6 @@ def plot_inference(o, p_true, p_bar, r, beliefs, mode='expectation', fig=None, a
         axs[i_layer].set_ylabel(label, fontsize=14)
         axs[i_layer].axis('tight')
     axs[-1].set_xlabel('trials', fontsize=14);
+    fig.tight_layout()
 
     return fig, axs
