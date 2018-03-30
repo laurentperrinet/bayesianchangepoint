@@ -1,0 +1,5 @@
+numpy
+holoviews
+matplotlib
+version-information
+watermark
