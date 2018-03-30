@@ -32,6 +32,31 @@ which is itself adapted from the matlab code @
 """
 import numpy as np
 
+def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_layer=3):
+    """
+
+    A 3-layered model for generating samples.
+
+    about Jeffrey's prior : see https://en.wikipedia.org/wiki/Jeffreys_prior
+
+    """
+
+    from scipy.stats import beta
+    np.random.seed(seed)
+
+    trials = np.arange(N_trials)
+    p = np.random.rand(N_trials, N_blocks, N_layer)
+    for trial in trials:
+        p[trial, :, 2] = np.random.rand(1, N_blocks) < 1/tau # switch
+        if Jeffreys: #
+            p_random = beta.rvs(a=.5, b=.5, size=N_blocks)
+        else:
+            p_random = np.random.rand(1, N_blocks)
+        p[trial, :, 1] = (1 - p[trial, :, 2])*p[trial-1, :, 1] + p[trial, :, 2] * p_random # probability
+        p[trial, :, 0] =  p[trial, :, 1] > np.random.rand(1, N_blocks) # binomial
+
+    return (trials, p)
+
 def likelihood(o, p, r):
     """
     Knowing p and r, the likelihood of observing o is that of a binomial of
@@ -146,30 +171,6 @@ def inference(o, h, p0=.5, verbose=False, max_T=None):
     return p_bar, r, beliefs
 
 
-def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_layer=3):
-    """
-
-    A 3-layered model for generating samples.
-
-    about Jeffrey's prior : see https://en.wikipedia.org/wiki/Jeffreys_prior
-
-    """
-
-    from scipy.stats import beta
-    np.random.seed(seed)
-
-    trials = np.arange(N_trials)
-    p = np.random.rand(N_trials, N_blocks, N_layer)
-    for trial in trials:
-        p[trial, :, 2] = np.random.rand(1, N_blocks) < 1/tau # switch
-        if Jeffreys: #
-            p_random = beta.rvs(a=.5, b=.5, size=N_blocks)
-        else:
-            p_random = np.random.rand(1, N_blocks)
-        p[trial, :, 1] = (1 - p[trial, :, 2])*p[trial-1, :, 1] + p[trial, :, 2] * p_random # probability
-        p[trial, :, 0] =  p[trial, :, 1] > np.random.rand(1, N_blocks) # binomial
-
-    return (trials, p)
 
 def readout(p_bar, r, beliefs, mode='expectation', fixed_window_size=40):
     """
