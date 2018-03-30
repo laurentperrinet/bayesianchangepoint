@@ -47,7 +47,7 @@ def likelihood(o, p, r):
     L /=         (1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) +     (1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
     return L
 
-def inference(o, h, p0=.5, verbose=False):
+def inference(o, h, p0=.5, verbose=False, max_T=None):
     """
     Args:
       * o (np.ndarray): data has given in a sequence of observations as a
@@ -82,7 +82,10 @@ def inference(o, h, p0=.5, verbose=False):
             time, but this is a convenience for plots.
 
     """
-    T = o.size # total number of observations
+    if max_T is None:
+        T = o.size # total number of observations
+    else:
+        T = max_T
     # First, setup the matrix that will hold our beliefs about the current
     # run lengths.  We'll initialize it all to zero at first.
     beliefs = np.zeros((T+1, T+1))
