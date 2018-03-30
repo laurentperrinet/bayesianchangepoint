@@ -72,7 +72,7 @@ def likelihood(o, p, r):
     L /=         (1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) +     (1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
     return L
 
-def inference(o, h, p0=.5, verbose=False, max_T=None):
+def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
     """
     Args:
       * o (np.ndarray): data has given in a sequence of observations as a
@@ -133,7 +133,7 @@ def inference(o, h, p0=.5, verbose=False, max_T=None):
     for t in range(T):
         # the vector of the different run-length at time t+1
         # it has size t+2 to represent all possible run lengths
-        r[:(t+1), t] = np.arange(0, t+1)
+        r[:(t+1), t] = np.arange(0, t+1) + r0
 
         # Evaluate the predictive distribution for the next datum assuming that
         # we know the sufficient statistics of the pdf that generated the datum.
