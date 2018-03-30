@@ -7,7 +7,7 @@ from __future__ import print_function, division
  An implementation of:
  @TECHREPORT{ adams-mackay-2007,
     AUTHOR = {Ryan Prescott Adams and David J.C. MacKay},
-    TITLE  = "{B}ayesian Online Changepoint Detection",
+    TITLE  = "Bayesian Online Changepoint Detection",
     INSTITUTION = "University of Cambridge",
     ADDRESS = "Cambridge, UK",
     YEAR = "2007",
@@ -61,8 +61,8 @@ def likelihood(o, p, r):
     """
     Knowing p and r, the likelihood of observing o is that of a binomial of
 
-        - mean rate of chosing 1 = (p*r + o)/(r+1)
-        - number of choices = 1 equal to p*r+1
+        - mean rate of chosing hypothesis "o=1" = (p*r + o)/(r+1)
+        - number of choices where  "o=1" equals to p*r+1
 
     since both likelihood sum to 1, the likelihood of drawing o in {0, 1}
     is equal to
@@ -191,17 +191,27 @@ def readout(p_bar, r, beliefs, mode='expectation', fixed_window_size=40):
         p_hat = np.array([p_bar[belief_max[i], i+1] for i in range(belief_max.size)])
         r_hat = belief_max
     elif mode=='fixed':
-        r_hat=[]
+        r_hat = []
         for i in range(len(p_bar)-1):
             if i <= fixed_window_size :
                 r_hat.append(i)
             else :
                 r_hat.append(fixed_window_size)
         p_hat = np.array([p_bar[r_hat[i], i+1] for i in range(len(r_hat))])
-    # TODO : implement elif mode=='hindsight':
+    elif mode=='hindsight':
+        N_trials = beliefs.shape[-1] -1 #len(p_bar)-1
+        r_hat = np.zeros(N_trials, dtype=np.int)
+        for t in range(N_trials)[::-1]:
+            if r_hat[t] < 1 :
+                r_hat[t-1] = np.argmax(beliefs[:, t])
+            else :
+                r_hat[t-1] = r_hat[t] - 1
+
+        p_hat = np.array([p_bar[r_hat[t]-1, t] for t in range(N_trials)])
+
     return p_hat, r_hat
 
-def plot_inference(o, p_true, p_bar, r, beliefs, mode='expectation', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120):
+def plot_inference(o, p_true, p_bar, r, beliefs, mode='max', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120):
     import matplotlib.pyplot as plt
     N_trials = o.size
 
@@ -214,6 +224,7 @@ def plot_inference(o, p_true, p_bar, r, beliefs, mode='expectation', fixed_windo
         axs[0].step(range(N_trials), p_true, lw=1, alpha=.9, c='b')
 
     p_hat, r_hat = readout(p_bar, r, beliefs, mode=mode, fixed_window_size=fixed_window_size)
+
     from scipy.stats import beta
     p_low, p_sup = np.zeros_like(p_hat), np.zeros_like(p_hat)
     for i_trial in range(N_trials):
@@ -234,6 +245,7 @@ def plot_inference(o, p_true, p_bar, r, beliefs, mode='expectation', fixed_windo
         axs[i_layer].set_ylabel(label, fontsize=14)
         axs[i_layer].axis('tight')
     axs[-1].set_xlabel('trials', fontsize=14);
+    axs[-1].set_ylim(0, max_run_length);
     fig.tight_layout()
 
     return fig, axs
