@@ -138,9 +138,10 @@ def inference(o, h, p0=.5, verbose=False, max_T=None):
         # Evaluate the predictive distribution for the next datum assuming that
         # we know the sufficient statistics of the pdf that generated the datum.
         # This probability is computed over the set of possible run-lengths.
-        p_hat = likelihood(o[t], p_bar[:(t+1), t], r[:(t+1), t])
+        pi_hat = likelihood(o[t], p_bar[:(t+1), t], r[:(t+1), t])
 
-        if verbose and t <8: print('time', t, '; obs=', o[t], '; beliefs=', beliefs[:(t+1), t], '; p_hat=', p_hat, '; 1-h=', (1-h), '; p_bar=', p_bar[:(t+1), t])
+        if verbose and t<8:
+            print('time', t, '; obs=', o[t], '; beliefs=', beliefs[:(t+1), t], '; pi_hat=', pi_hat, '; 1-h=', (1-h), '; p_bar=', p_bar[:(t+1), t])
         # Evaluate the growth probabilities at
         # it is a vector for the belief of the different run-length at time t+1
         # knowing the datum observed until time t
@@ -149,11 +150,11 @@ def inference(o, h, p0=.5, verbose=False, max_T=None):
         # iff there was no changepoint, shift the probabilities up in the graph
         # scaled by the hazard function and the predictive
         # probabilities.
-        belief[1:] = beliefs[:(t+1), t] * p_hat * (1-h)
+        belief[1:] = beliefs[:(t+1), t] * pi_hat * (1-h)
 
         # Evaluate the probability that there *was* a changepoint and we're
         # accumulating the mass back down at a run length of 0.
-        belief[0] = np.sum(beliefs[:(t+1), t] * p_hat * h)
+        belief[0] = np.sum(beliefs[:(t+1), t] * pi_hat * h)
         #if verbose and t <8: print('belief=', belief)
         # Renormalize the run length probabilities by calculating total evidence
         belief = belief / np.sum(belief)
@@ -162,12 +163,13 @@ def inference(o, h, p0=.5, verbose=False, max_T=None):
         if verbose and t <8: print('Note that at t', t, ', belief', belief[0], '= h = ', h)
 
         # Update the sufficient statistics for each possible run length.
-        p_bar[0, t+1] = p0 # TODO : introduce Jeffrey's prior into that inference
-        for i in range(1, t+2):
-            #if verbose and t <8: print(t, i, r[i, t]+1, o[(t-i+1):(t+1)])
-            #TODO : recursive rule
-            p_bar[i, t+1] = np.mean( o[(t-i+1):(t+1)] ) #/ (r[i, t] +1)
-
+        p_bar[1:(t+2), t+1] = p_bar[:(t+1), t] * r[:(t+1), t] / (r[:(t+1), t] + 1)
+        p_bar[1:(t+2), t+1] += o[t] / (r[:(t+1), t] + 1)
+        p_bar[0, t+1] = p0
+        # for i in range(1, t+2):
+        #     #if verbose and t <8: print(t, i, r[i, t]+1, o[(t-i+1):(t+1)])
+        #     p_bar[i, t+1] = np.mean( o[(t-i+1):(t+1)] ) #/ (r[i, t] +1)
+        #
     return p_bar, r, beliefs
 
 
