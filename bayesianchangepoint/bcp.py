@@ -72,6 +72,15 @@ def likelihood(o, p, r):
     L /=         (1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) +     (1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
     return L
 
+def prior(p):
+    """
+
+    https://en.wikipedia.org/wiki/Jeffreys_prior
+
+    """
+    return (p * (1-p)) ** -.5
+
+
 def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
     """
     Args:
@@ -133,12 +142,12 @@ def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
     for t in range(T):
         # the vector of the different run-length at time t+1
         # it has size t+2 to represent all possible run lengths
-        r[:(t+1), t] = np.arange(0, t+1) + r0
+        r[:(t+1), t] = np.arange(0, t+1)
 
         # Evaluate the predictive distribution for the next datum assuming that
         # we know the sufficient statistics of the pdf that generated the datum.
         # This probability is computed over the set of possible run-lengths.
-        pi_hat = likelihood(o[t], p_bar[:(t+1), t], r[:(t+1), t])
+        pi_hat = likelihood(o[t], p_bar[:(t+1), t], r[:(t+1), t]) #* prior(p_bar[:(t+1), t])
 
         if verbose and t<8:
             print('time', t, '; obs=', o[t], '; beliefs=', beliefs[:(t+1), t], '; pi_hat=', pi_hat, '; 1-h=', (1-h), '; p_bar=', p_bar[:(t+1), t])
@@ -183,33 +192,38 @@ def readout(p_bar, r, beliefs, mode='expectation', fixed_window_size=40):
     - 'max' : gives the most liklelikely values at each time,
 
     """
-    if mode=='expectation':
-        p_hat = np.sum(p_bar[:, 1:] * beliefs[:, :-1], axis=0)
-        r_hat = np.sum(r * beliefs, axis=0)[:-1]
-    elif mode=='max':
-        belief_max = np.argmax(beliefs, axis=0)[:-1]
-        p_hat = np.array([p_bar[belief_max[i], i+1] for i in range(belief_max.size)])
-        r_hat = belief_max
-    elif mode=='fixed':
-        r_hat = []
-        for i in range(len(p_bar)-1):
-            if i <= fixed_window_size :
-                r_hat.append(i)
-            else :
-                r_hat.append(fixed_window_size)
-        p_hat = np.array([p_bar[r_hat[i], i+1] for i in range(len(r_hat))])
-    elif mode=='hindsight':
-        N_trials = beliefs.shape[-1] -1 #len(p_bar)-1
-        r_hat = np.zeros(N_trials, dtype=np.int)
-        for t in range(N_trials)[::-1]:
-            if r_hat[t] < 1 :
-                r_hat[t-1] = np.argmax(beliefs[:, t])
-            else :
-                r_hat[t-1] = r_hat[t] - 1
+    modes = ['expectation', 'max', 'fixed', 'hindsight']
+    if mode in modes:
+        if mode=='expectation':
+            p_hat = np.sum(p_bar[:, 1:] * beliefs[:, :-1], axis=0)
+            r_hat = np.sum(r * beliefs, axis=0)[:-1]
+        elif mode=='max':
+            belief_max = np.argmax(beliefs, axis=0)[:-1]
+            p_hat = np.array([p_bar[belief_max[i], i+1] for i in range(belief_max.size)])
+            r_hat = belief_max
+        elif mode=='fixed':
+            r_hat = []
+            for i in range(len(p_bar)-1):
+                if i <= fixed_window_size :
+                    r_hat.append(i)
+                else :
+                    r_hat.append(fixed_window_size)
+            p_hat = np.array([p_bar[r_hat[i], i+1] for i in range(len(r_hat))])
+        elif mode=='hindsight':
+            N_trials = beliefs.shape[-1] -1 #len(p_bar)-1
+            r_hat = np.zeros(N_trials, dtype=np.int)
+            for t in range(N_trials)[::-1]:
+                if r_hat[t] < 1 :
+                    r_hat[t-1] = np.argmax(beliefs[:, t])
+                else :
+                    r_hat[t-1] = r_hat[t] - 1
 
-        p_hat = np.array([p_bar[r_hat[t]-1, t] for t in range(N_trials)])
+            p_hat = np.array([p_bar[r_hat[t]-1, t] for t in range(N_trials)])
 
-    return p_hat, r_hat
+        return p_hat, r_hat
+    else:
+        print ('mode ', mode, 'must be in ', modes)
+        return None
 
 def plot_inference(o, p_true, p_bar, r, beliefs, mode='max', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120):
     import matplotlib.pyplot as plt
