@@ -47,7 +47,7 @@ def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_la
     trials = np.arange(N_trials)
     p = np.random.rand(N_trials, N_blocks, N_layer)
     for trial in trials:
-        p[trial, :, 2] = np.random.rand(1, N_blocks) < 1/tau # switch
+        p[trial, :, 2] = np.random.rand(1, N_blocks) < 1./tau # switch
         if Jeffreys: #
             p_random = beta.rvs(a=.5, b=.5, size=N_blocks)
         else:
@@ -85,15 +85,13 @@ def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
     """
     Args:
       * o (np.ndarray): data has given in a sequence of observations as a
-        function of (dicscrete) time (or trials). The totla number of trials
+        function of (dicscrete) time (or trials). The total number of trials
         is T.
 
       * h (float): hazard rate, a value in the interval [0,1] that is the
         probability of a changepoint at any given time.
 
-      * p0, r0 (float, float): specify initial values for beta-distribution.
-
-      * alpha0, beta0 (float, float): specify prior beta-distribution for p.
+      * p0, r0 (float, float): specify prior beta-distribution for p.
         This data is Binomial with unknown mean.  We are going to
         use the standard conjugate prior of a beta-ditribution. ** Note that
         one cannot use non-informative priors for changepoint detection in
@@ -103,23 +101,27 @@ def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
     Output:
       * beliefs (np.ndarray): beliefs about the current run lengths, the first
           axis (one row) is the probability vector at any given time. This vector
-          is of length at maximum T( the maximal run length). It represents the
-          probability of a given run-length after one observation.
-
-      * p_bar (np.ndarray): mean of the prediction about p. Given the run-lengths r,
-          this gives the sufficient statistics for our belief about p at any given
-          time.
+          is of length at maximum T (the maximal run length or ``max_T`` if
+          specified). It represents the infered probability of each given run-length
+          for the current (coming trial) given the past observations.
 
             - the first axis records the estimated prebabilities
             for the different hypothesis of run lengths
             - the second axis is time (trials) - the system has only access to the present
-            time, but this is a convenience for plots.
+            time, but this is a convenience for plots. Outputs give the inference
+            for the  current trial, before the actual observation.
+
+      * p_bar (np.ndarray): mean of the prediction about p. Given the run-lengths r,
+          and the beliefs about each of them, this gives the sufficient statistics
+          for our belief about p (second layer) for any coming trial.
+          Same dimension as ``beliefs``.
 
     """
     if max_T is None:
-        T = o.size # total number of observations
+        T = o.size # max is by default the total number of observations
     else:
-        T = max_T
+        T = max_T # unless otherwise specified
+        
     # First, setup the matrix that will hold our beliefs about the current
     # run lengths.  We'll initialize it all to zero at first.
     beliefs = np.zeros((T+1, T+1))
