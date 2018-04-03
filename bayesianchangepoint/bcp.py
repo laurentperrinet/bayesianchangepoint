@@ -88,7 +88,7 @@ def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
         function of (dicscrete) time (or trials). The total number of trials
         is T.
 
-      * h (float): hazard rate, a value in the interval [0,1] that is the
+      * h (float): hazard rate, a value in the interval [0, 1] that is the
         probability of a changepoint at any given time.
 
       * p0, r0 (float, float): specify prior beta-distribution for p.
@@ -99,11 +99,11 @@ def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
         predictive distribution, which makes it easy to use in this context. **
 
     Output:
-      * beliefs (np.ndarray): beliefs about the current run lengths, the first
+      * beliefs (np.ndarray): beliefs about the run lengths at next trial, the first
           axis (one row) is the probability vector at any given time. This vector
           is of length at maximum T (the maximal run length or ``max_T`` if
           specified). It represents the infered probability of each given run-length
-          for the current (coming trial) given the past observations.
+          for the next trial given the past observations.
 
             - the first axis records the estimated prebabilities
             for the different hypothesis of run lengths
@@ -121,10 +121,13 @@ def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
         T = o.size # max is by default the total number of observations
     else:
         T = max_T # unless otherwise specified
-        
+
+    assert(0 <= h <= 1)
+    assert(0 <= p0 <= 1)
+
     # First, setup the matrix that will hold our beliefs about the current
     # run lengths.  We'll initialize it all to zero at first.
-    beliefs = np.zeros((T+1, T+1))
+    beliefs = np.zeros((T, T))
 
     # INITIALIZATION
     # At time t=0, we actually have complete knowledge about the possible run
@@ -134,15 +137,15 @@ def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
 
     # Track the current set of parameters.  These start out at the prior and
     # we accumulate data as we proceed.
-    p_bar = np.zeros((T+1, T+1))
+    p_bar = np.zeros((T, T))
     p_bar[0, 0] = p0
 
     # matrix of run lengths
-    r = np.zeros((T+1, T+1))
+    r = np.zeros((T, T))
 
-    # Loop over the data like we're seeing it all for the first time.
-    for t in range(T):
-        # the vector of the different run-length at time t+1
+    # Loop over the data
+    for t in range(T-1):
+        # the vector of the different run-length at trial t+1
         # it has size t+2 to represent all possible run lengths
         r[:(t+1), t] = np.arange(0, t+1)
 
@@ -183,8 +186,6 @@ def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
         #
     return p_bar, r, beliefs
 
-
-
 def readout(p_bar, r, beliefs, mode='expectation', fixed_window_size=40):
     """
     Retrieves a readout given a probabilistic representation
@@ -197,45 +198,47 @@ def readout(p_bar, r, beliefs, mode='expectation', fixed_window_size=40):
 
     """
     modes = ['expectation', 'max', 'fixed', 'hindsight']
+    N_trials = beliefs.shape[-1]
     if mode in modes:
         if mode=='expectation':
-            p_hat = np.sum(p_bar[:, 1:] * r[:, :-1] * beliefs[:, :-1], axis=0)
-            r_hat = np.sum(r[:, :-1] * beliefs[:, :-1], axis=0)
+            p_hat = np.sum(p_bar * r * beliefs, axis=0)
+            r_hat = np.sum(r * beliefs, axis=0)
             p_hat[r_hat > 0] /= r_hat[r_hat > 0]
             p_hat[r_hat==0] = .5
             # r_hat = np.sum(r * beliefs, axis=0)[:-1]
         elif mode=='max':
-            belief_max = np.argmax(beliefs, axis=0)[:-1]
-            p_hat = np.array([p_bar[belief_max[i], i+1] for i in range(belief_max.size)])
-            r_hat = belief_max
+            r_hat = np.argmax(beliefs, axis=0)
+            p_hat = np.array([p_bar[r_hat[i], i] for i in range(N_trials)])
         elif mode=='fixed':
-            r_hat = []
-            for i in range(len(p_bar)-1):
+            r_hat = np.zeros(N_trials, dtype=np.int)
+            for i in range(N_trials):
                 if i <= fixed_window_size :
-                    r_hat.append(i)
+                    r_hat[i] = i
                 else :
-                    r_hat.append(fixed_window_size)
-            p_hat = np.array([p_bar[r_hat[i], i+1] for i in range(len(r_hat))])
+                    r_hat[i] = fixed_window_size
+            p_hat = np.array([p_bar[r_hat[i], i] for i in range(N_trials)])
         elif mode=='hindsight':
-            N_trials = beliefs.shape[-1] -1 #len(p_bar)-1
+
             p_hat = np.zeros(N_trials)
             r_hat = np.zeros(N_trials, dtype=np.int)
+            # initialize to the last measure
+            r_hat[-1] = np.argmax(beliefs[:, -1])
+            p_hat[-1] = p_bar[r_hat[-1], -1]
+            # propagate backwards
             for t in range(N_trials)[::-1]:
-                if r_hat[t] < 1 :
+                if r_hat[t] == 0 :
                     r_hat[t-1] = np.argmax(beliefs[:, t])
                     p_hat[t-1] = p_bar[r_hat[t-1], t-1]
                 else :
                     r_hat[t-1] = r_hat[t] - 1
                     p_hat[t-1] = p_hat[t]
 
-            # p_hat = np.array([p_bar[r_hat[t]-1, t] for t in range(N_trials)])
-
         return p_hat, r_hat
     else:
         print ('mode ', mode, 'must be in ', modes)
         return None
 
-def plot_inference(o, p_true, p_bar, r, beliefs, mode='max', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120):
+def plot_inference(o, p_true, p_bar, r, beliefs, mode='max', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120, eps=1.e-12):
     import matplotlib.pyplot as plt
     N_trials = o.size
 
@@ -257,17 +260,20 @@ def plot_inference(o, p_true, p_bar, r, beliefs, mode='max', fixed_window_size=4
     axs[0].plot(range(N_trials), p_hat, lw=1, alpha=.9, c='r')
     axs[0].plot(range(N_trials), p_sup, 'r--', lw=1, alpha=.9)
     axs[0].plot(range(N_trials), p_low, 'r--', lw=1, alpha=.9)
-    axs[1].imshow(np.log(beliefs[:max_run_length, :] + 1.e-5 ))
+    axs[1].imshow(np.log(beliefs[:max_run_length, :] + eps ))
     axs[1].plot(range(N_trials), r_hat, lw=1, alpha=.9, c='r')
 
     for i_layer, label in zip(range(2), ['p_hat +/- CI', 'belief on r = p(r)']):
-        axs[i_layer].set_xlim(0, N_trials)
-        axs[i_layer].set_ylim(-.05, 1 + .05)
         axs[i_layer].axis('tight')
+        #axs[i_layer].set_xlim(0, N_trials+1)
+        axs[i_layer].set_xticks(np.linspace(0, N_trials, 5, endpoint=True))
+        axs[i_layer].set_xticklabels([str(int(k)) for k in np.linspace(0, N_trials, 5, endpoint=True)])
+        axs[i_layer].set_ylim(-.02, 1 + .02)
+        # axs[i_layer].axis('tight')
 #            axs[i_layer].set_yticks(np.arange(1)+.5)
 #            axs[i_layer].set_yticklabels(np.arange(1) )
         axs[i_layer].set_ylabel(label, fontsize=14)
-        axs[i_layer].axis('tight')
+        #
     axs[-1].set_xlabel('trials', fontsize=14);
     axs[-1].set_ylim(0, max_run_length);
     fig.tight_layout()
