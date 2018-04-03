@@ -195,7 +195,8 @@ def readout(p_bar, r, beliefs, mode='expectation', fixed_window_size=40):
     modes = ['expectation', 'max', 'fixed', 'hindsight']
     if mode in modes:
         if mode=='expectation':
-            p_hat = np.sum(p_bar[:, 1:] * beliefs[:, :-1], axis=0)
+            p_hat = np.sum(p_bar[:, 1:] * r[:, :-1] * beliefs[:, :-1], axis=0)
+            p_hat /= np.sum(r[:, :-1] * beliefs[:, :-1], axis=0)
             r_hat = np.sum(r * beliefs, axis=0)[:-1]
         elif mode=='max':
             belief_max = np.argmax(beliefs, axis=0)[:-1]
