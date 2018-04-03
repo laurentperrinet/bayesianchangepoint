@@ -190,14 +190,18 @@ def readout(p_bar, r, beliefs, mode='expectation', fixed_window_size=40):
     Different modes are available:
     - 'expectation' : gives the average value of the estimated
     - 'max' : gives the most liklelikely values at each time,
+    - 'hindsight' : looks back in time knowing a complete inference run
+    - 'fixed' : considers a fixed Window
 
     """
     modes = ['expectation', 'max', 'fixed', 'hindsight']
     if mode in modes:
         if mode=='expectation':
             p_hat = np.sum(p_bar[:, 1:] * r[:, :-1] * beliefs[:, :-1], axis=0)
-            p_hat /= np.sum(r[:, :-1] * beliefs[:, :-1], axis=0)
-            r_hat = np.sum(r * beliefs, axis=0)[:-1]
+            r_hat = np.sum(r[:, :-1] * beliefs[:, :-1], axis=0)
+            p_hat[r_hat > 0] /= r_hat[r_hat > 0]
+            p_hat[r_hat==0] = .5
+            # r_hat = np.sum(r * beliefs, axis=0)[:-1]
         elif mode=='max':
             belief_max = np.argmax(beliefs, axis=0)[:-1]
             p_hat = np.array([p_bar[belief_max[i], i+1] for i in range(belief_max.size)])
@@ -212,14 +216,17 @@ def readout(p_bar, r, beliefs, mode='expectation', fixed_window_size=40):
             p_hat = np.array([p_bar[r_hat[i], i+1] for i in range(len(r_hat))])
         elif mode=='hindsight':
             N_trials = beliefs.shape[-1] -1 #len(p_bar)-1
+            p_hat = np.zeros(N_trials)
             r_hat = np.zeros(N_trials, dtype=np.int)
             for t in range(N_trials)[::-1]:
                 if r_hat[t] < 1 :
                     r_hat[t-1] = np.argmax(beliefs[:, t])
+                    p_hat[t-1] = p_bar[r_hat[t-1], t-1]
                 else :
                     r_hat[t-1] = r_hat[t] - 1
+                    p_hat[t-1] = p_hat[t]
 
-            p_hat = np.array([p_bar[r_hat[t]-1, t] for t in range(N_trials)])
+            # p_hat = np.array([p_bar[r_hat[t]-1, t] for t in range(N_trials)])
 
         return p_hat, r_hat
     else:
