@@ -248,7 +248,7 @@ def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='max', fixed_window_si
 
     axs[0].step(range(N_trials), o, lw=1, alpha=.9, c='k')
     if not p_true is None:
-        axs[0].step(range(N_trials), p_true, lw=1, alpha=.9, c='b')
+        axs[0].step(range(N_trials), p_true, lw=3, alpha=.4, c='b')
 
     p_hat, r_hat = readout(p_bar, r_bar, beliefs, mode=mode, fixed_window_size=fixed_window_size)
 
