@@ -59,7 +59,12 @@ def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_la
 
 def likelihood(o, p, r):
     """
-    Knowing p and r, the likelihood of observing o is that of a binomial of
+    Knowing p and r, the sufficient statistics of the beta distribution $B(\alpha, \beta)$ :
+    $$
+        alpha = p*r
+        beta  = (1-p)*r
+    $$
+    the likelihood of observing o is that of a binomial of
 
         - mean rate of chosing hypothesis "o=1" = (p*r + o)/(r+1)
         - number of choices where  "o=1" equals to p*r+1
