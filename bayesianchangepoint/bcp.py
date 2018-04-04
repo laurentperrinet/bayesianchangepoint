@@ -184,7 +184,7 @@ def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
         #
     return p_bar, r, beliefs
 
-def readout(p_bar, r, beliefs, mode='expectation', fixed_window_size=40):
+def readout(p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40):
     """
     Retrieves a readout given a probabilistic representation
 
@@ -199,37 +199,39 @@ def readout(p_bar, r, beliefs, mode='expectation', fixed_window_size=40):
     N_trials = beliefs.shape[-1]
     if mode in modes:
         if mode=='expectation':
-            p_hat = np.sum(p_bar * r * beliefs, axis=0)
-            r_hat = np.sum(r * beliefs, axis=0)
+            p_hat = np.sum(p_bar * r_bar * beliefs, axis=0)
+            r_hat = np.sum(r_bar * beliefs, axis=0)
             p_hat[r_hat > 0] /= r_hat[r_hat > 0]
             p_hat[r_hat==0] = .5
             # r_hat = np.sum(r * beliefs, axis=0)[:-1]
         elif mode=='max':
-            r_hat = np.argmax(beliefs, axis=0)
-            p_hat = np.array([p_bar[r_hat[i], i] for i in range(N_trials)])
+            r_ = np.argmax(beliefs, axis=0)
+            p_hat = np.array([p_bar[r_[i], i] for i in range(N_trials)])
+            r_hat = np.array([r_bar[r_[i], i] for i in range(N_trials)])
         elif mode=='fixed':
-            r_hat = np.zeros(N_trials, dtype=np.int)
+            r_ = np.zeros(N_trials, dtype=np.int)
             for i in range(N_trials):
                 if i <= fixed_window_size :
-                    r_hat[i] = i
+                    r_[i] = i
                 else :
-                    r_hat[i] = fixed_window_size
-            p_hat = np.array([p_bar[r_hat[i], i] for i in range(N_trials)])
+                    r_[i] = fixed_window_size
+            p_hat = np.array([p_bar[r_[i], i] for i in range(N_trials)])
+            r_hat = np.array([r_bar[r_[i], i] for i in range(N_trials)])
         elif mode=='hindsight':
-
             p_hat = np.zeros(N_trials)
-            r_hat = np.zeros(N_trials, dtype=np.int)
+            r_hat = np.zeros(N_trials)
             # initialize to the last measure
-            r_hat[-1] = np.argmax(beliefs[:, -1])
-            p_hat[-1] = p_bar[r_hat[-1], -1]
+            idx = 0
             # propagate backwards
             for t in range(N_trials)[::-1]:
-                if r_hat[t] == 0 :
-                    r_hat[t-1] = np.argmax(beliefs[:, t])
-                    p_hat[t-1] = p_bar[r_hat[t-1], t-1]
+                if idx == 0 :
+                    idx = np.argmax(beliefs[:, t])
+                    p_hat[t] = p_bar[idx, t]
+                    r_hat[t] = r_bar[idx, t]
                 else :
-                    r_hat[t-1] = r_hat[t] - 1
-                    p_hat[t-1] = p_hat[t]
+                    idx -= 1
+                    p_hat[t] = p_hat[t+1]
+                    r_hat[t] = r_hat[t+1] - 1
 
         return p_hat, r_hat
     else:
