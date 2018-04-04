@@ -59,7 +59,7 @@ def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_la
 
 def likelihood(o, p, r):
     """
-    Knowing p and r, the sufficient statistics of the beta distribution $B(\alpha, \beta)$ :
+    Knowing $p$ and $r$, the sufficient statistics of the beta distribution $B(\alpha, \beta)$ :
     $$
         alpha = p*r
         beta  = (1-p)*r
@@ -69,12 +69,21 @@ def likelihood(o, p, r):
         - mean rate of chosing hypothesis "o=1" = (p*r + o)/(r+1)
         - number of choices where  "o=1" equals to p*r+1
 
-    since both likelihood sum to 1, the likelihood of drawing o in {0, 1}
+    since both likelihood sum to 1, the likelihood of drawing o in the set {0, 1}
     is equal to
 
     """
-    L =  (1-o) * (1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) + o * (1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
-    L /=         (1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) +     (1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
+    if True:
+        L =  (1-o) * ( 1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) + o * ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
+        L /=         ( 1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) +     ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
+    else:
+        from scipy.stats import beta as beta_pdf
+        alpha = p*r
+        beta  = (1-p)*r
+        p_0 = beta_pdf.ppf((p*r + 0)/(r+1), alpha, beta)
+        p_1 = beta_pdf.ppf((p*r + 1)/(r+1), alpha, beta)
+        L = ((1-o) * p_1 + o * p_0) / (p_0 + p_1)
+
     return L
 
 def prior(p):
@@ -151,15 +160,23 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
 
     # Loop over the data
     for t in range(T-1):
+        # EVALUATION
+        # we use the knowledge at time t to evaluate the likelihood of the new datum o[t]
+
         # Evaluate the predictive distribution for the next datum assuming that
         # we know the sufficient statistics of the pdf that generated the datum.
         # This probability is computed over the set of possible run-lengths.
-        pi_hat = likelihood(o[t], p_bar[:(t+1), t], r_bar[:(t+1), t]) #* prior(p_bar[:(t+1), t])
+        pi_hat = likelihood(o[t], p_bar[:(t+1), t], r_bar[:(t+1), t])
 
         if verbose and t<8:
             print('time', t, '; obs=', o[t], '; beliefs=', beliefs[:(t+1), t], '; pi_hat=', pi_hat, '; 1-h=', (1-h), '; p_bar=', p_bar[:(t+1), t])
-        # Evaluate the growth probabilities at
-        # it is a vector for the belief of the different run-length at time t+1
+
+        # PREDICTION
+        # we use prior knowledge about the generative model to predict the state
+        # of the system at time t+1
+
+        # 1/ Evaluate the growth probabilities at time t+1
+        # it is a vector for the belief of the different run-length
         # knowing the datum observed until time t
         # it has size t+2 to represent all possible run lengths up to time t along with the new datum
         belief = np.zeros((t+2))
@@ -178,14 +195,16 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
         beliefs[:(t+2), t+1] = belief
         if verbose and t <8: print('Note that at t', t, ', belief', belief[0], '= h = ', h)
 
-        # Update the sufficient statistics for each possible run length.
-        p_bar[1:(t+2), t+1] = p_bar[:(t+1), t] * (r_bar[:(t+1), t]) / (r_bar[:(t+1), t] + 1)
-        p_bar[1:(t+2), t+1] += o[t] / (r_bar[:(t+1), t] + 1)
-        p_bar[0, t+1] = p0
+        # 2/ Update the sufficient statistics for each possible run length.
         # the vector of the different run-length at trial t+1
         # it has size t+2 to represent all possible run lengths
         r_bar[1:(t+2), t+1] = r_bar[:(t+1), t] + 1
         r_bar[0, t+1] = r0
+        # the corresponding mean
+        p_bar[1:(t+2), t+1] = p_bar[:(t+1), t] * r_bar[:(t+1), t] / r_bar[1:(t+2), t+1]
+        p_bar[1:(t+2), t+1] += o[t] / r_bar[1:(t+2), t+1]
+        p_bar[0, t+1] = p0
+
 
     return p_bar, r_bar, beliefs
 
@@ -246,7 +265,6 @@ def readout(p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40):
 def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='max', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120, eps=1.e-12, margin=0.01):
     import matplotlib.pyplot as plt
     N_trials = o.size
-
     if fig is None:
         fig_width= fig_width
         fig, axs = plt.subplots(2, 1, figsize=(fig_width, fig_width/1.6180), sharex=True)
@@ -265,7 +283,10 @@ def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='max', fixed_window_si
     axs[0].plot(range(N_trials), p_hat, lw=1, alpha=.9, c='r')
     axs[0].plot(range(N_trials), p_sup, 'r--', lw=1, alpha=.9)
     axs[0].plot(range(N_trials), p_low, 'r--', lw=1, alpha=.9)
-    axs[1].imshow(np.log(beliefs[:max_run_length, :] + eps ))
+    if mode == 'fixed':
+        axs[1].imshow(np.log(beliefs[:max_run_length, :]*0. + eps ))
+    else:
+        axs[1].imshow(np.log(beliefs[:max_run_length, :] + eps ))
     axs[1].plot(range(N_trials), r_hat, lw=1, alpha=.9, c='r')
 
     for i_layer, label in zip(range(2), ['p_hat +/- CI', 'belief on r = p(r)']):
