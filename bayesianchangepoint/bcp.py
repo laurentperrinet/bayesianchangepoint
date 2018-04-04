@@ -81,7 +81,7 @@ def prior(p):
     return (p * (1-p)) ** -.5
 
 
-def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
+def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
     """
     Args:
       * o (np.ndarray): data has given in a sequence of observations as a
@@ -96,6 +96,8 @@ def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
         use the standard conjugate prior of a beta-ditribution.
         The beta-ditribution yields a closed-form
         predictive distribution, which makes it easy to use in this context.
+        The prior on r0 takes the value 1. for a Jeffrey prior and 2. for a
+        uniform prior.
 
     Output:
       * beliefs (np.ndarray): beliefs about the run lengths at a given trial, the first
@@ -138,19 +140,16 @@ def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
     p_bar = np.zeros((T, T))
     p_bar[0, 0] = p0
 
-    # matrix of run lengths
-    r = np.zeros((T, T))
+    # matrix of r=alpha+beta in the beta-ditribution
+    r_bar = np.zeros((T, T))
+    r_bar[0, 0] = r0
 
     # Loop over the data
     for t in range(T-1):
-        # the vector of the different run-length at trial t+1
-        # it has size t+2 to represent all possible run lengths
-        r[:(t+1), t] = np.arange(0, t+1) + 2.*r0
-
         # Evaluate the predictive distribution for the next datum assuming that
         # we know the sufficient statistics of the pdf that generated the datum.
         # This probability is computed over the set of possible run-lengths.
-        pi_hat = likelihood(o[t], p_bar[:(t+1), t], r[:(t+1), t]) #* prior(p_bar[:(t+1), t])
+        pi_hat = likelihood(o[t], p_bar[:(t+1), t], r_bar[:(t+1), t]) #* prior(p_bar[:(t+1), t])
 
         if verbose and t<8:
             print('time', t, '; obs=', o[t], '; beliefs=', beliefs[:(t+1), t], '; pi_hat=', pi_hat, '; 1-h=', (1-h), '; p_bar=', p_bar[:(t+1), t])
@@ -175,14 +174,15 @@ def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
         if verbose and t <8: print('Note that at t', t, ', belief', belief[0], '= h = ', h)
 
         # Update the sufficient statistics for each possible run length.
-        p_bar[1:(t+2), t+1] = p_bar[:(t+1), t] * (r[:(t+1), t]) / (r[:(t+1), t] + 1)
-        p_bar[1:(t+2), t+1] += o[t] / (r[:(t+1), t] + 1)
+        p_bar[1:(t+2), t+1] = p_bar[:(t+1), t] * (r_bar[:(t+1), t]) / (r_bar[:(t+1), t] + 1)
+        p_bar[1:(t+2), t+1] += o[t] / (r_bar[:(t+1), t] + 1)
         p_bar[0, t+1] = p0
-        # for i in range(1, t+2):
-        #     #if verbose and t <8: print(t, i, r[i, t]+1, o[(t-i+1):(t+1)])
-        #     p_bar[i, t+1] = np.mean( o[(t-i+1):(t+1)] ) #/ (r[i, t] +1)
-        #
-    return p_bar, r, beliefs
+        # the vector of the different run-length at trial t+1
+        # it has size t+2 to represent all possible run lengths
+        r_bar[1:(t+2), t+1] = r_bar[:(t+1), t] + 1
+        r_bar[0, t+1] = r0
+
+    return p_bar, r_bar, beliefs
 
 def readout(p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40):
     """
