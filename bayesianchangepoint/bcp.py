@@ -85,7 +85,7 @@ def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
     """
     Args:
       * o (np.ndarray): data has given in a sequence of observations as a
-        function of (dicscrete) time (or trials). The total number of trials
+        function of (discrete) time (or trials). The total number of trials
         is T.
 
       * h (float): hazard rate, a value in the interval [0, 1] that is the
@@ -93,28 +93,26 @@ def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
 
       * p0, r0 (float, float): specify prior beta-distribution for p.
         This data is Binomial with unknown mean.  We are going to
-        use the standard conjugate prior of a beta-ditribution. ** Note that
-        one cannot use non-informative priors for changepoint detection in
-        this construction.  The beta-ditribution yields a closed-form
-        predictive distribution, which makes it easy to use in this context. **
+        use the standard conjugate prior of a beta-ditribution.
+        The beta-ditribution yields a closed-form
+        predictive distribution, which makes it easy to use in this context.
 
     Output:
-      * beliefs (np.ndarray): beliefs about the run lengths at next trial, the first
+      * beliefs (np.ndarray): beliefs about the run lengths at a given trial, the first
           axis (one row) is the probability vector at any given time. This vector
           is of length at maximum T (the maximal run length or ``max_T`` if
-          specified). It represents the infered probability of each given run-length
-          for the next trial given the past observations.
+          specified). It represents the infered probability for each given run-length
+          hypothesis for the given trial given the past observations.
 
             - the first axis records the estimated prebabilities
             for the different hypothesis of run lengths
             - the second axis is time (trials) - the system has only access to the present
             time, but this is a convenience for plots. Outputs give the inference
-            for the  current trial, before the actual observation.
+            for the current trial, before the actual observation.
 
       * p_bar (np.ndarray): mean of the prediction about p. Given the run-lengths r,
-          and the beliefs about each of them, this gives the sufficient statistics
-          for our belief about p (second layer) for any coming trial.
-          Same dimension as ``beliefs``.
+          this gives the sufficient statistics for our belief about p (second
+          layer) for any coming trial. Has the same dimension as ``beliefs``.
 
     """
     if max_T is None:
@@ -147,7 +145,7 @@ def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
     for t in range(T-1):
         # the vector of the different run-length at trial t+1
         # it has size t+2 to represent all possible run lengths
-        r[:(t+1), t] = np.arange(0, t+1)
+        r[:(t+1), t] = np.arange(0, t+1) + 2.*r0
 
         # Evaluate the predictive distribution for the next datum assuming that
         # we know the sufficient statistics of the pdf that generated the datum.
@@ -177,7 +175,7 @@ def inference(o, h, p0=.5, r0=.5, verbose=False, max_T=None):
         if verbose and t <8: print('Note that at t', t, ', belief', belief[0], '= h = ', h)
 
         # Update the sufficient statistics for each possible run length.
-        p_bar[1:(t+2), t+1] = p_bar[:(t+1), t] * r[:(t+1), t] / (r[:(t+1), t] + 1)
+        p_bar[1:(t+2), t+1] = p_bar[:(t+1), t] * (r[:(t+1), t]) / (r[:(t+1), t] + 1)
         p_bar[1:(t+2), t+1] += o[t] / (r[:(t+1), t] + 1)
         p_bar[0, t+1] = p0
         # for i in range(1, t+2):
