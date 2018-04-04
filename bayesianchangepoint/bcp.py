@@ -238,7 +238,7 @@ def readout(p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40):
         print ('mode ', mode, 'must be in ', modes)
         return None
 
-def plot_inference(o, p_true, p_bar, r, beliefs, mode='max', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120, eps=1.e-12):
+def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='max', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120, eps=1.e-12, margin=0.01):
     import matplotlib.pyplot as plt
     N_trials = o.size
 
@@ -250,7 +250,7 @@ def plot_inference(o, p_true, p_bar, r, beliefs, mode='max', fixed_window_size=4
     if not p_true is None:
         axs[0].step(range(N_trials), p_true, lw=1, alpha=.9, c='b')
 
-    p_hat, r_hat = readout(p_bar, r, beliefs, mode=mode, fixed_window_size=fixed_window_size)
+    p_hat, r_hat = readout(p_bar, r_bar, beliefs, mode=mode, fixed_window_size=fixed_window_size)
 
     from scipy.stats import beta
     p_low, p_sup = np.zeros_like(p_hat), np.zeros_like(p_hat)
@@ -268,7 +268,7 @@ def plot_inference(o, p_true, p_bar, r, beliefs, mode='max', fixed_window_size=4
         #axs[i_layer].set_xlim(0, N_trials+1)
         axs[i_layer].set_xticks(np.linspace(0, N_trials, 5, endpoint=True))
         axs[i_layer].set_xticklabels([str(int(k)) for k in np.linspace(0, N_trials, 5, endpoint=True)])
-        axs[i_layer].set_ylim(-.02, 1 + .02)
+        axs[i_layer].set_ylim(-margin, 1 + margin)
         # axs[i_layer].axis('tight')
 #            axs[i_layer].set_yticks(np.arange(1)+.5)
 #            axs[i_layer].set_yticklabels(np.arange(1) )
