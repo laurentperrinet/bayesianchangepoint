@@ -262,8 +262,9 @@ def readout(p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40):
         print ('mode ', mode, 'must be in ', modes)
         return None
 
-def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='max', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120, eps=1.e-12, margin=0.01):
+def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120, eps=1.e-12, margin=0.01):
     import matplotlib.pyplot as plt
+
     N_trials = o.size
     if fig is None:
         fig_width= fig_width
