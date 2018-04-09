@@ -5,7 +5,7 @@ bayesianchangepoint
 
 An implementation of
 [Adams &amp; MacKay 2007 "Bayesian Online Changepoint Detection"](http://arxiv.org/abs/0710.3742)
-in Python.  
+in Python.
 
 ````
 @TECHREPORT{ adams-mackay-2007,
@@ -19,7 +19,7 @@ URL = "http://arxiv.org/abs/0710.3742"
 }
 ````
 
-for a binomial input.
+for a **binomial input**.
 
 adapted from
 url='https://github.com/JackKelly/bayesianchangepoint',
@@ -31,7 +31,7 @@ author_email='jack@jack-kelly.com',
 
 This code is based on the beautifully commented
 [MATLAB implementation](http://www.inference.phy.cam.ac.uk/rpa23/changepoint.php)
-provided by Ryan Adams.
+that was provided by Ryan Adams (no longer available online).
 
 http://hips.seas.harvard.edu/content/bayesian-online-changepoint-detection
 
