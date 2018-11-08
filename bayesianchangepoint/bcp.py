@@ -222,7 +222,7 @@ def readout(p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40):
     - 'fixed': considers a fixed Window
 
     """
-    modes = ['expectation', 'max', 'fixed', 'hindsight']
+    modes = ['expectation', 'max', 'fixed', 'fixed-exp', 'hindsight']
     N_r, N_trials = beliefs.shape
     if mode in modes:
         if mode == 'expectation':
@@ -277,8 +277,8 @@ def readout(p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40):
 
 def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120, eps=1.e-12, margin=0.01):
     import matplotlib.pyplot as plt
-
-    N_trials = o.size
+    N_r, N_trials = beliefs.shape
+    # N_trials = o.size
     if fig is None:
         fig_width = fig_width
         fig, axs = plt.subplots(2, 1, figsize=(fig_width, fig_width/1.6180), sharex=True)
@@ -299,6 +299,11 @@ def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='expectation', fixed_w
     axs[0].plot(range(N_trials), p_low, 'r--', lw=1, alpha=.9)
     if mode == 'fixed':
         axs[1].imshow(np.log(beliefs[:max_run_length, :]*0. + eps))
+    elif mode == 'fixed-exp':
+        beliefs_ = np.exp(-np.arange(N_r) / fixed_window_size)
+        beliefs_ /= beliefs_.sum()
+        beliefs_ = beliefs_[:, None]
+        axs[1].imshow(np.log((beliefs_*np.ones(N_trials))[:max_run_length, :] + eps))
     else:
         axs[1].imshow(np.log(beliefs[:max_run_length, :] + eps))
     axs[1].plot(range(N_trials), r_hat, lw=1, alpha=.9, c='r')
