@@ -38,11 +38,12 @@ def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_la
 
     A 3-layered model for generating samples.
 
-    about Jeffrey's prior : see https://en.wikipedia.org/wiki/Jeffreys_prior
+    about Jeffrey's prior: see https://en.wikipedia.org/wiki/Jeffreys_prior
 
     """
 
-    if Jeffreys: from scipy.stats import beta
+    if Jeffreys:
+        from scipy.stats import beta
     np.random.seed(seed)
 
     trials = np.arange(N_trials)
@@ -64,7 +65,7 @@ def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_la
 
 def likelihood(o, p, r):
     """
-    Knowing $p$ and $r$, the sufficient statistics of the beta distribution $B(\alpha, \beta)$ :
+    Knowing $p$ and $r$, the sufficient statistics of the beta distribution $B(\alpha, \beta)$:
     $$
         alpha = p*r
         beta  = (1-p)*r
@@ -82,6 +83,7 @@ def likelihood(o, p, r):
     L /=         ( 1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) +     ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
 
     return L
+
 
 def prior(p):
     """
@@ -128,7 +130,7 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
           layer) for any coming trial. Has the same dimension as ``beliefs``.
 
     """
-    if not max_T is None:
+    if max_T is not None:
         # unless otherwise specified
         T = max_T
     else:
@@ -168,7 +170,7 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
         # This probability is computed over the set of possible run-lengths.
         pi_hat = likelihood(o[t], p_bar[:(t+1), t], r_bar[:(t+1), t])
 
-        if verbose and t<8:
+        if verbose and t < 8:
             print('time', t, '; obs=', o[t], '; beliefs=', beliefs[:(t+1), t], '; pi_hat=', pi_hat, '; 1-h=', (1-h), '; p_bar=', p_bar[:(t+1), t])
 
         # PREDICTION
@@ -188,12 +190,13 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
         # Evaluate the probability that there *was* a changepoint and we're
         # accumulating the mass back down at a run length of 0.
         belief[0] = np.sum(beliefs[:(t+1), t] * pi_hat * h)
-        #if verbose and t <8: print('belief=', belief)
+        # if verbose and t <8: print('belief=', belief)
         # Renormalize the run length probabilities by calculating total evidence
         belief = belief / np.sum(belief)
         # record this vector
         beliefs[:(t+2), t+1] = belief
-        if verbose and t <8: print('Note that at t', t, ', belief', belief[0], '= h = ', h)
+        if verbose and t < 8:
+            print('Note that at t', t, ', belief', belief[0], '= h = ', h)
 
         # 2/ Update the sufficient statistics for each possible run length.
         # the vector of the different run-length at trial t+1
@@ -205,73 +208,83 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
         p_bar[1:(t+2), t+1] += o[t] / r_bar[1:(t+2), t+1]
         p_bar[0, t+1] = p0
 
-
     return p_bar, r_bar, beliefs
+
 
 def readout(p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40):
     """
     Retrieves a readout given a probabilistic representation
 
     Different modes are available:
-    - 'expectation' : gives the average value of the estimated
-    - 'max' : gives the most liklelikely values at each time,
-    - 'hindsight' : looks back in time knowing a complete inference run
-    - 'fixed' : considers a fixed Window
+    - 'expectation': gives the average value of the estimated
+    - 'max': gives the most liklelikely values at each time,
+    - 'hindsight': looks back in time knowing a complete inference run
+    - 'fixed': considers a fixed Window
 
     """
     modes = ['expectation', 'max', 'fixed', 'hindsight']
-    N_trials = beliefs.shape[-1]
+    N_r, N_trials = beliefs.shape
     if mode in modes:
-        if mode=='expectation':
+        if mode == 'expectation':
             p_hat = np.sum(p_bar * r_bar * beliefs, axis=0)
             r_hat = np.sum(r_bar * beliefs, axis=0)
+            # TODO: explain these lines...
             p_hat[r_hat > 0] /= r_hat[r_hat > 0]
-            p_hat[r_hat==0] = .5
+            p_hat[r_hat==0] = .5  # values for a switch
             # r_hat = np.sum(r * beliefs, axis=0)[:-1]
-        elif mode=='max':
+        elif mode == 'max':
             r_ = np.argmax(beliefs, axis=0)
             p_hat = np.array([p_bar[r_[i], i] for i in range(N_trials)])
             r_hat = np.array([r_bar[r_[i], i] for i in range(N_trials)])
-        elif mode=='fixed':
+        elif mode == 'fixed-exp':
+            beliefs_ = np.exp(-np.arange(N_r) / fixed_window_size)
+            beliefs_ /= beliefs_.sum()
+            beliefs_ = beliefs_[:, None]
+            p_hat = np.sum(p_bar * r_bar * beliefs_, axis=0)
+            r_hat = np.sum(r_bar * beliefs_, axis=0)
+            p_hat[r_hat > 0] /= r_hat[r_hat > 0]
+            p_hat[r_hat == 0] = .5  # values for a switch
+        elif mode == 'fixed':
             r_ = np.zeros(N_trials, dtype=np.int)
             for i in range(N_trials):
-                if i <= fixed_window_size :
+                if i <= fixed_window_size:
                     r_[i] = i
-                else :
+                else:
                     r_[i] = fixed_window_size
             p_hat = np.array([p_bar[r_[i], i] for i in range(N_trials)])
             r_hat = np.array([r_bar[r_[i], i] for i in range(N_trials)])
-        elif mode=='hindsight':
+        elif mode == 'hindsight':
             p_hat = np.zeros(N_trials)
             r_hat = np.zeros(N_trials)
             # initialize to the last measure
             idx = 0
             # propagate backwards
             for t in range(N_trials)[::-1]:
-                if idx == 0 :
+                if idx == 0:
                     idx = np.argmax(beliefs[:, t])
                     p_hat[t] = p_bar[idx, t]
                     r_hat[t] = r_bar[idx, t]
-                else :
+                else:
                     idx -= 1
                     p_hat[t] = p_hat[t+1]
                     r_hat[t] = r_hat[t+1] - 1
 
         return p_hat, r_hat
     else:
-        print ('mode ', mode, 'must be in ', modes)
+        print('mode ', mode, 'must be in ', modes)
         return None
+
 
 def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120, eps=1.e-12, margin=0.01):
     import matplotlib.pyplot as plt
 
     N_trials = o.size
     if fig is None:
-        fig_width= fig_width
+        fig_width = fig_width
         fig, axs = plt.subplots(2, 1, figsize=(fig_width, fig_width/1.6180), sharex=True)
 
     axs[0].step(range(N_trials), o, lw=1, alpha=.9, c='k')
-    if not p_true is None:
+    if p_true is not None:
         axs[0].step(range(N_trials), p_true, lw=3, alpha=.4, c='b')
 
     p_hat, r_hat = readout(p_bar, r_bar, beliefs, mode=mode, fixed_window_size=fixed_window_size)
@@ -285,14 +298,14 @@ def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='expectation', fixed_w
     axs[0].plot(range(N_trials), p_sup, 'r--', lw=1, alpha=.9)
     axs[0].plot(range(N_trials), p_low, 'r--', lw=1, alpha=.9)
     if mode == 'fixed':
-        axs[1].imshow(np.log(beliefs[:max_run_length, :]*0. + eps ))
+        axs[1].imshow(np.log(beliefs[:max_run_length, :]*0. + eps))
     else:
-        axs[1].imshow(np.log(beliefs[:max_run_length, :] + eps ))
+        axs[1].imshow(np.log(beliefs[:max_run_length, :] + eps))
     axs[1].plot(range(N_trials), r_hat, lw=1, alpha=.9, c='r')
 
     for i_layer, label in zip(range(2), ['p_hat +/- CI', 'belief on r = p(r)']):
         axs[i_layer].axis('tight')
-        #axs[i_layer].set_xlim(0, N_trials+1)
+        # axs[i_layer].set_xlim(0, N_trials+1)
         axs[i_layer].set_xticks(np.linspace(0, N_trials, 5, endpoint=True))
         axs[i_layer].set_xticklabels([str(int(k)) for k in np.linspace(0, N_trials, 5, endpoint=True)])
         axs[i_layer].set_ylim(-margin, 1 + margin)
@@ -301,8 +314,8 @@ def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='expectation', fixed_w
 #            axs[i_layer].set_yticklabels(np.arange(1) )
         axs[i_layer].set_ylabel(label, fontsize=14)
         #
-    axs[-1].set_xlabel('trials', fontsize=14);
-    axs[-1].set_ylim(0, max_run_length);
+    axs[-1].set_xlabel('trials', fontsize=14)
+    axs[-1].set_ylim(0, max_run_length)
     fig.tight_layout()
 
     return fig, axs
