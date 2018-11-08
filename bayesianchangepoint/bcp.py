@@ -1,6 +1,7 @@
 # -*- coding: utf8 -*-
 from __future__ import print_function, division
 """
+BBCP: Binomial Bayesian Changepoint Detection
 
     url='https://github.com/laurentperrinet/bayesianchangepoint',
 
@@ -41,21 +42,25 @@ def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_la
 
     """
 
-    from scipy.stats import beta
+    if Jeffreys: from scipy.stats import beta
     np.random.seed(seed)
 
     trials = np.arange(N_trials)
     p = np.random.rand(N_trials, N_blocks, N_layer)
     for trial in trials:
-        p[trial, :, 2] = np.random.rand(1, N_blocks) < 1./tau # switch
-        if Jeffreys: #
+        # drawing all switches
+        p[trial, :, 2] = np.random.rand(1, N_blocks) < 1./tau
+        if Jeffreys:
             p_random = beta.rvs(a=.5, b=.5, size=N_blocks)
         else:
             p_random = np.random.rand(1, N_blocks)
-        p[trial, :, 1] = (1 - p[trial, :, 2])*p[trial-1, :, 1] + p[trial, :, 2] * p_random # probability
-        p[trial, :, 0] =  p[trial, :, 1] > np.random.rand(1, N_blocks) # binomial
+        # drawing all probability biases
+        p[trial, :, 1] = (1 - p[trial, :, 2])*p[trial-1, :, 1] + p[trial, :, 2] * p_random
+        # drawing all samples
+        p[trial, :, 0] = p[trial, :, 1] > np.random.rand(1, N_blocks)
 
     return (trials, p)
+
 
 def likelihood(o, p, r):
     """
@@ -64,7 +69,7 @@ def likelihood(o, p, r):
         alpha = p*r
         beta  = (1-p)*r
     $$
-    the likelihood of observing o is that of a binomial of
+    the likelihood of observing o=1 is that of a binomial of
 
         - mean rate of chosing hypothesis "o=1" = (p*r + o)/(r+1)
         - number of choices where  "o=1" equals to p*r+1
@@ -73,16 +78,8 @@ def likelihood(o, p, r):
     is equal to
 
     """
-    if True:
-        L =  (1-o) * ( 1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) + o * ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
-        L /=         ( 1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) +     ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
-    else:
-        from scipy.stats import beta as beta_pdf
-        alpha = p*r
-        beta  = (1-p)*r
-        p_0 = beta_pdf.ppf((p*r + 0)/(r+1), alpha, beta)
-        p_1 = beta_pdf.ppf((p*r + 1)/(r+1), alpha, beta)
-        L = ((1-o) * p_1 + o * p_0) / (p_0 + p_1)
+    L =  (1-o) * ( 1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) + o * ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
+    L /=         ( 1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) +     ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
 
     return L
 
@@ -107,10 +104,10 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
 
       * p0, r0 (float, float): specify prior beta-distribution for p.
         This data is Binomial with unknown mean.  We are going to
-        use the standard conjugate prior of a beta-ditribution.
+        use the standard conjugate prior, that is, a beta-ditribution.
         The beta-ditribution yields a closed-form
         predictive distribution, which makes it easy to use in this context.
-        The prior on r0 takes the value 1. for a Jeffrey prior and 2. for a
+        The prior on r0 takes the value $1$ for a Jeffrey prior and $2$ for a
         uniform prior.
 
     Output:
@@ -131,11 +128,14 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
           layer) for any coming trial. Has the same dimension as ``beliefs``.
 
     """
-    if max_T is None:
-        T = o.size # max is by default the total number of observations
+    if not max_T is None:
+        # unless otherwise specified
+        T = max_T
     else:
-        T = max_T # unless otherwise specified
+        # max is by default the total number of observations
+        T = o.size
 
+    # check parameter range
     assert(0 <= h <= 1)
     assert(0 <= p0 <= 1)
 
@@ -145,8 +145,8 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
 
     # INITIALIZATION
     # At time t=0, we actually have complete knowledge about the possible run
-    # length probabilities. It is zero: the corresponding probability is 1 at 0
-    # and zero elsewhere.
+    # length probabilities. It is surely zero: the corresponding probability
+    # is 1 at r=0 and zero elsewhere.
     beliefs[0, 0] = 1.0
 
     # Track the current set of parameters.  These start out at the prior and
