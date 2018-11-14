@@ -63,7 +63,7 @@ def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_la
     return (trials, p)
 
 
-def likelihood(o, p, r, r0=1.):
+def likelihood(o, p, r, r0=2.):
     """
     Knowing $p$ and $r$, the sufficient statistics of the beta distribution $B(\alpha, \beta)$:
     $$
@@ -80,13 +80,19 @@ def likelihood(o, p, r, r0=1.):
 
     """
     def L(o, p, r):
-        P =  (1-o) * ( 1 - 1 / (p * r + 1) )**(p*r + r0/2 -1) * ((1-p) * r + 1)
-        P +=  o * ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r + r0/2 -1) * (p * r + 1)
+        if True:#False:
+            P =  (1-o) * ( 1 - 1 / (p * r + 1) )**(p*r + r0/2 -1) * ((1-p) * r + 1)
+            P +=  o * ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r + r0/2 -1) * (p * r + 1)
+            P = np.log(P)
+        else:
+            P =  (p*r + o + r0/2 -1)*np.log(p*r + o)
+            P +=  ((1-p)*r + 1 - o + r0/2 -1)*np.log((1-p)*r + 1 - o)
+
         return  P
 
     Lyes = L(o, p, r)
     Lno = L(1-o, p, r)
-    return Lyes / (Lyes + Lno)
+    return 1 / (1 + np.exp(Lno-Lyes))
 
 
 def prior(p):
