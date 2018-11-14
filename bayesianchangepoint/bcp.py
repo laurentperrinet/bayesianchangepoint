@@ -63,7 +63,7 @@ def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_la
     return (trials, p)
 
 
-def likelihood(o, p, r):
+def likelihood(o, p, r, r0=1.):
     """
     Knowing $p$ and $r$, the sufficient statistics of the beta distribution $B(\alpha, \beta)$:
     $$
@@ -79,10 +79,14 @@ def likelihood(o, p, r):
     is equal to
 
     """
-    L =  (1-o) * ( 1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) + o * ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
-    L /=         ( 1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1) +     ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
+    def L(o, p, r):
+        P =  (1-o) * ( 1 - 1 / (p * r + 1) )**(p*r + r0/2 -1) * ((1-p) * r + 1)
+        P +=  o * ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r + r0/2 -1) * (p * r + 1)
+        return  P
 
-    return L
+    Lyes = L(o, p, r)
+    Lno = L(1-o, p, r)
+    return Lyes / (Lyes + Lno)
 
 
 def prior(p):
@@ -94,7 +98,7 @@ def prior(p):
     return (p * (1-p)) ** -.5
 
 
-def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
+def inference(o, h, p0=.5, r0=2., verbose=False, max_T=None):
     """
     Args:
       * o (np.ndarray): data has given in a sequence of observations as a
@@ -168,7 +172,7 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
         # Evaluate the predictive distribution for the next datum assuming that
         # we know the sufficient statistics of the pdf that generated the datum.
         # This probability is computed over the set of possible run-lengths.
-        pi_hat = likelihood(o[t], p_bar[:(t+1), t], r_bar[:(t+1), t])
+        pi_hat = likelihood(o[t], p_bar[:(t+1), t], r_bar[:(t+1), t], r0=r0)
 
         if verbose and t < 8:
             print('time', t, '; obs=', o[t], '; beliefs=', beliefs[:(t+1), t], '; pi_hat=', pi_hat, '; 1-h=', (1-h), '; p_bar=', p_bar[:(t+1), t])
