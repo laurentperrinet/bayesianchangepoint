@@ -63,7 +63,7 @@ def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_la
     return (trials, p)
 
 
-def likelihood(o, p, r, r0=2.):
+def likelihood(o, p, r):
     """
     Knowing $p$ and $r$, the sufficient statistics of the beta distribution $B(\alpha, \beta)$:
     $$
@@ -79,21 +79,25 @@ def likelihood(o, p, r, r0=2.):
     is equal to
 
     """
-    def L(o, p, r):
-        if True:#False:
-            P =  (1-o) * ( 1 - 1 / (p * r + 1) )**(p*r + r0/2 -1) * ((1-p) * r + 1)
-            P +=  o * ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r + r0/2 -1) * (p * r + 1)
-            P = np.log(P)
-        else:
-            P =  (p*r + o + r0/2 -1)*np.log(p*r + o)
-            P +=  ((1-p)*r + 1 - o + r0/2 -1)*np.log((1-p)*r + 1 - o)
+    if False:#True:#
+        def logL(o, p, r):
+            logP =  (p*r + o)*np.log(p*r + o)
+            logP +=  ((1-p)*r + 1 - o)*np.log((1-p)*r + 1 - o)
+            return  logP
+        Lyes = logL(o, p, r)
+        Lno = logL(1-o, p, r)
+        return 1 / (1 + np.exp(Lno-Lyes))
 
-        return  P
+    else:
+        def L(o, p, r):
+            P =  (1-o) * ( 1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1)
+            P +=  o * ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
+            #P = np.log(P)
+            return  P
 
-    Lyes = L(o, p, r)
-    Lno = L(1-o, p, r)
-    return 1 / (1 + np.exp(Lno-Lyes))
-
+        Lyes = L(o, p, r)
+        Lno = L(1-o, p, r)
+        return Lyes / (Lyes + Lno)
 
 def prior(p):
     """
@@ -104,7 +108,7 @@ def prior(p):
     return (p * (1-p)) ** -.5
 
 
-def inference(o, h, p0=.5, r0=2., verbose=False, max_T=None):
+def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
     """
     Args:
       * o (np.ndarray): data has given in a sequence of observations as a
@@ -178,7 +182,7 @@ def inference(o, h, p0=.5, r0=2., verbose=False, max_T=None):
         # Evaluate the predictive distribution for the next datum assuming that
         # we know the sufficient statistics of the pdf that generated the datum.
         # This probability is computed over the set of possible run-lengths.
-        pi_hat = likelihood(o[t], p_bar[:(t+1), t], r_bar[:(t+1), t], r0=r0)
+        pi_hat = likelihood(o[t], p_bar[:(t+1), t], r_bar[:(t+1), t])
 
         if verbose and t < 8:
             print('time', t, '; obs=', o[t], '; beliefs=', beliefs[:(t+1), t], '; pi_hat=', pi_hat, '; 1-h=', (1-h), '; p_bar=', p_bar[:(t+1), t])
