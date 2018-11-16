@@ -63,7 +63,7 @@ def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_la
     return (trials, p)
 
 
-def likelihood(o, p, r):
+def likelihood(o, p, r, do_log=False):
     """
     Knowing $p$ and $r$, the sufficient statistics of the beta distribution $B(\alpha, \beta)$:
     $$
@@ -79,7 +79,7 @@ def likelihood(o, p, r):
     is equal to
 
     """
-    if False:#True:#
+    if do_log:
         def logL(o, p, r):
             logP =  (p*r + o)*np.log(p*r + o)
             logP +=  ((1-p)*r + 1 - o)*np.log((1-p)*r + 1 - o)
@@ -92,7 +92,6 @@ def likelihood(o, p, r):
         def L(o, p, r):
             P =  (1-o) * ( 1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1)
             P +=  o * ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
-            #P = np.log(P)
             return  P
 
         Lyes = L(o, p, r)
@@ -240,11 +239,11 @@ def readout(p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40):
     N_r, N_trials = beliefs.shape
     if mode in modes:
         if mode == 'expectation':
-            p_hat = np.sum(p_bar * r_bar * beliefs, axis=0)
+            p_hat = np.sum(p_bar * beliefs, axis=0)
             r_hat = np.sum(r_bar * beliefs, axis=0)
             # TODO: explain these lines...
-            p_hat[r_hat > 0] /= r_hat[r_hat > 0]
-            p_hat[r_hat==0] = .5  # values for a switch
+            #p_hat[r_hat > 0] /= r_hat[r_hat > 0]
+            #p_hat[r_hat==0] = .5  # values for a switch
             # r_hat = np.sum(r * beliefs, axis=0)[:-1]
         elif mode == 'max':
             r_ = np.argmax(beliefs, axis=0)
