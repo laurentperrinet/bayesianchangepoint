@@ -63,7 +63,7 @@ def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_la
     return (trials, p)
 
 
-def likelihood(o, p, r, do_log=False):
+def likelihood(o, p, r):
     """
     Knowing $p$ and $r$, the sufficient statistics of the beta distribution $B(\alpha, \beta)$:
     $$
@@ -79,7 +79,7 @@ def likelihood(o, p, r, do_log=False):
     is equal to
 
     """
-    if do_log:
+    if False:#True:#
         def logL(o, p, r):
             logP =  (p*r + o)*np.log(p*r + o)
             logP +=  ((1-p)*r + 1 - o)*np.log((1-p)*r + 1 - o)
@@ -92,6 +92,7 @@ def likelihood(o, p, r, do_log=False):
         def L(o, p, r):
             P =  (1-o) * ( 1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1)
             P +=  o * ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
+            #P = np.log(P)
             return  P
 
         Lyes = L(o, p, r)
@@ -224,7 +225,7 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
     return p_bar, r_bar, beliefs
 
 
-def readout(p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40):
+def readout(p_bar, r_bar, beliefs, mode='expectation', p0=.5, fixed_window_size=40):
     """
     Retrieves a readout given a probabilistic representation
 
@@ -235,16 +236,19 @@ def readout(p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40):
     - 'fixed': considers a fixed Window
 
     """
-    modes = ['expectation', 'max', 'fixed', 'fixed-exp', 'hindsight']
+    modes = ['expectation', 'max', 'mean', 'fixed', 'fixed-exp', 'hindsight']
     N_r, N_trials = beliefs.shape
     if mode in modes:
-        if mode == 'expectation':
+        if mode == 'mean':
             p_hat = np.sum(p_bar * beliefs, axis=0)
             r_hat = np.sum(r_bar * beliefs, axis=0)
-            # TODO: explain these lines...
-            #p_hat[r_hat > 0] /= r_hat[r_hat > 0]
-            #p_hat[r_hat==0] = .5  # values for a switch
-            # r_hat = np.sum(r * beliefs, axis=0)[:-1]
+        elif mode == 'expectation':
+            r_hat = np.sum(r_bar * beliefs, axis=0)
+            p_hat = np.sum(p_bar * r_bar * beliefs, axis=0)
+            # for those trials which have a non-null run-length, normalize p_hat
+            p_hat[r_hat > 0] /= r_hat[r_hat > 0]
+            # values for a switch
+            p_hat[r_hat==0] = p0  
         elif mode == 'max':
             r_ = np.argmax(beliefs, axis=0)
             p_hat = np.array([p_bar[r_[i], i] for i in range(N_trials)])
