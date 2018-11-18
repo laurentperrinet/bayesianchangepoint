@@ -292,7 +292,7 @@ def readout(p_bar, r_bar, beliefs, mode='expectation', p0=.5, fixed_window_size=
         return None
 
 
-def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120, eps=1.e-12, margin=0.01):
+def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120, eps=1.e-12, margin=0.01, p0=.5):
     import matplotlib.pyplot as plt
     N_r, N_trials = beliefs.shape
     # N_trials = o.size
@@ -304,7 +304,7 @@ def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='expectation', fixed_w
     if p_true is not None:
         axs[0].step(range(N_trials), p_true, lw=3, alpha=.4, c='b')
 
-    p_hat, r_hat = readout(p_bar, r_bar, beliefs, mode=mode, fixed_window_size=fixed_window_size)
+    p_hat, r_hat = readout(p_bar, r_bar, beliefs, mode=mode, fixed_window_size=fixed_window_size, p0=p0)
 
     from scipy.stats import beta
     p_low, p_sup = np.zeros_like(p_hat), np.zeros_like(p_hat)
