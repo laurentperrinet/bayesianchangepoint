@@ -225,7 +225,7 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
     return p_bar, r_bar, beliefs
 
 
-def readout(p_bar, r_bar, beliefs, mode='expectation', p0=.5, fixed_window_size=40):
+def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40):
     """
     Retrieves a readout given a probabilistic representation
 
@@ -292,7 +292,7 @@ def readout(p_bar, r_bar, beliefs, mode='expectation', p0=.5, fixed_window_size=
         return None
 
 
-def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='expectation', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120, eps=1.e-12, margin=0.01, p0=.5):
+def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='mean', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120, eps=1.e-12, margin=0.01, p0=.5):
     import matplotlib.pyplot as plt
     N_r, N_trials = beliefs.shape
     # N_trials = o.size
