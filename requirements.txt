@@ -1,6 +1,5 @@
 numpy
 scipy
-git+https://github.com/laurentperrinet/bayesianchangepoint
 holoviews
 matplotlib
 version-information

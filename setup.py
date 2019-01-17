@@ -23,11 +23,12 @@ setup(
     packages = find_packages(),
     install_requires = ['numpy', 'matplotlib'],
     description='An implementation of Adams and MacKay 2007'
+                ' Adapted from that of Jack Kelly '
                 ' "Bayesian Online Changepoint Detection"'
                 ' in Python.  This code is based on the beautifully commented'
                 ' MATLAB implementation provided by Ryan Adams.',
-    author='Jack Kelly',
-    author_email='jack@jack-kelly.com',
+    author='Laurent Perrinet',
+    author_email='laurent.perrinet@univ-amu.fr',
     url='https://github.com/laurentperrinet/bayesianchangepoint',
     download_url = 'https://github.com/laurentperrinet/bayesianchangepoint/tarball'
                    '/master#egg=bayesianchangepoint-dev',
