@@ -254,7 +254,7 @@ def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40):
             p_hat = np.array([p_bar[r_[i], i] for i in range(N_trials)])
             r_hat = np.array([r_bar[r_[i], i] for i in range(N_trials)])
         elif mode == 'leaky':
-            beliefs_ = np.exp(-np.arange(N_r) / fixed_window_size)
+            beliefs_ = (1-1/fixed_window_size)**np.arange(N_r)
             beliefs_ /= beliefs_.sum()
             beliefs_ = beliefs_[:, None]
             p_hat = np.sum(p_bar * r_bar * beliefs_, axis=0)
