@@ -259,8 +259,7 @@ def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40):
             beliefs_ = beliefs_[:, None]
             p_hat = np.sum(p_bar * r_bar * beliefs_, axis=0)
             r_hat = np.sum(r_bar * beliefs_, axis=0)
-            p_hat[r_hat > 0] /= r_hat[r_hat > 0]
-            p_hat[r_hat == 0] = .5  # values for a switch
+            p_hat /= r_hat
         elif mode == 'fixed':
             r_ = np.zeros(N_trials, dtype=np.int)
             for i in range(N_trials):
