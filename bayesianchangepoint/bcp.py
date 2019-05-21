@@ -248,7 +248,7 @@ def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40):
             # for those trials which have a non-null run-length, normalize p_hat
             p_hat[r_hat > 0] /= r_hat[r_hat > 0]
             # values for a switch
-            p_hat[r_hat==0] = p0  
+            p_hat[r_hat==0] = p0
         elif mode == 'max':
             r_ = np.argmax(beliefs, axis=0)
             p_hat = np.array([p_bar[r_[i], i] for i in range(N_trials)])
@@ -292,7 +292,7 @@ def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40):
         return None
 
 
-def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='mean', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120, eps=1.e-12, margin=0.01, p0=.5):
+def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='mean', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120, eps=1.e-12, margin=0.01, p0=.5, N_ticks=5):
     import matplotlib.pyplot as plt
     N_r, N_trials = beliefs.shape
     # N_trials = o.size
@@ -328,8 +328,9 @@ def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='mean', fixed_window_s
     for i_layer, label in zip(range(2), ['p_hat +/- CI', 'belief on r = p(r)']):
         axs[i_layer].axis('tight')
         # axs[i_layer].set_xlim(0, N_trials+1)
-        axs[i_layer].set_xticks(np.linspace(0, N_trials, 5, endpoint=True))
-        axs[i_layer].set_xticklabels([str(int(k)) for k in np.linspace(0, N_trials, 5, endpoint=True)])
+        if N_ticks>0:
+            axs[i_layer].set_xticks(np.linspace(0, N_trials, N_ticks, endpoint=True))
+            axs[i_layer].set_xticklabels([str(int(k)) for k in np.linspace(0, N_trials, 5, endpoint=True)])
         axs[i_layer].set_ylim(-margin, 1 + margin)
         # axs[i_layer].axis('tight')
 #            axs[i_layer].set_yticks(np.arange(1)+.5)
