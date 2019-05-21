@@ -236,7 +236,7 @@ def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40):
     - 'fixed': considers a fixed Window
 
     """
-    modes = ['expectation', 'max', 'mean', 'fixed', 'fixed-exp', 'hindsight']
+    modes = ['expectation', 'max', 'mean', 'fixed', 'leaky', 'hindsight']
     N_r, N_trials = beliefs.shape
     if mode in modes:
         if mode == 'mean':
@@ -253,7 +253,7 @@ def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40):
             r_ = np.argmax(beliefs, axis=0)
             p_hat = np.array([p_bar[r_[i], i] for i in range(N_trials)])
             r_hat = np.array([r_bar[r_[i], i] for i in range(N_trials)])
-        elif mode == 'fixed-exp':
+        elif mode == 'leaky':
             beliefs_ = np.exp(-np.arange(N_r) / fixed_window_size)
             beliefs_ /= beliefs_.sum()
             beliefs_ = beliefs_[:, None]
@@ -316,7 +316,7 @@ def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='mean', fixed_window_s
     axs[0].plot(range(N_trials), p_low, 'r--', lw=1, alpha=.9)
     if mode == 'fixed':
         axs[1].imshow(np.log(beliefs[:max_run_length, :]*0. + eps))
-    elif mode == 'fixed-exp':
+    elif mode == 'leaky':
         beliefs_ = np.exp(-np.arange(N_r) / fixed_window_size)
         beliefs_ /= beliefs_.sum()
         beliefs_ = beliefs_[:, None]
