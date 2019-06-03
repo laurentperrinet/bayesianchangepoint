@@ -133,12 +133,11 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
           layer) for any coming trial. Has the same dimension as ``beliefs``.
 
     """
-    if max_T is not None:
-        # unless otherwise specified
-        T = max_T
-    else:
-        # max is by default the total number of observations
-        T = o.size
+    # total number of observations
+    T = o.size
+    if max_T is None:
+        # unless otherwise specified max is by default T
+        max_T = T 
 
     # check parameter range
     assert(0 <= h <= 1)
@@ -146,7 +145,7 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
 
     # First, setup the matrix that will hold our beliefs about the current
     # run lengths.  We'll initialize it all to zero at first.
-    beliefs = np.zeros((T, T))
+    beliefs = np.zeros((max_T, T))
 
     # INITIALIZATION
     # At time t=0, we actually have complete knowledge about the possible run
@@ -156,21 +155,17 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
 
     # Track the current set of parameters.  These start out at the prior and
     # we accumulate data as we proceed.
-    p_bar = np.zeros((T, T))
+    p_bar = np.zeros((max_T, T))
     p_bar[0, 0] = p0
 
     # matrix of r=alpha+beta in the beta-ditribution
-    r_bar = np.zeros((T, T))
+    r_bar = np.zeros((max_T, T))
     r_bar[0, 0] = r0
 
     # Loop over the data
     for t in range(T-1):
         # EVALUATION
-        # we use the knowledge at time t to evaluate the likelihood of the new datum o[t]
-
-        # Evaluate the predictive distribution for the next datum assuming that
-        # we know the sufficient statistics of the pdf that generated the datum.
-        # This probability is computed over the set of possible run-lengths.
+        # we use the knowledge at time t to evaluate the likelihood of each node given new datum o[t]
         pi_hat = likelihood(o[t], p_bar[:(t+1), t], r_bar[:(t+1), t])
 
         if verbose and t < 8:
@@ -180,6 +175,11 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
         # we use prior knowledge about the generative model to predict the state
         # of the system at time t+1
 
+        # Evaluate the predictive distribution for the next datum assuming that
+        # we know the sufficient statistics of the pdf that generated the datum.
+        # This probability is computed over the set of possible run-lengths.
+        
+        
         # 1/ Evaluate the growth probabilities at time t+1
         # it is a vector for the belief of the different run-length
         # knowing the datum observed until time t
