@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 """
-BBCP: Binomial Bayesian Changepoint Detection
+BBCP: Binary Bayesian Changepoint Detection detection model
 
     url='https://github.com/laurentperrinet/bayesianchangepoint',
 
@@ -14,7 +14,7 @@ BBCP: Binomial Bayesian Changepoint Detection
     NOTE = "arXiv:0710.3742v1 [stat.ML]"
  }
 
- for a binomial input.
+ for a sequence of binary input data.
 
  adapted from
     url='https://github.com/JackKelly/bayesianchangepoint',
@@ -64,12 +64,13 @@ def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_la
 
 def likelihood(o, p, r):
     """
-    Knowing $p$ and $r$, the sufficient statistics of the beta distribution $B(\alpha, \beta)$:
+    Knowing $p$ and $r$, the sufficient statistics of the beta distribution $B(\alpha, \beta)$ are:
     $$
         alpha = p*r
         beta  = (1-p)*r
     $$
-    the likelihood of observing o=1 is that of a binomial of
+    
+    The likelihood of observing o=1 is that of a binomial of
 
         - mean rate of chosing hypothesis "o=1" = (p*r + o)/(r+1)
         - number of choices where  "o=1" equals to p*r+1
@@ -78,25 +79,14 @@ def likelihood(o, p, r):
     is equal to
 
     """
-    if False:#True:#
-        def logL(o, p, r):
-            logP =  (p*r + o)*np.log(p*r + o)
-            logP +=  ((1-p)*r + 1 - o)*np.log((1-p)*r + 1 - o)
-            return  logP
-        Lyes = logL(o, p, r)
-        Lno = logL(1-o, p, r)
-        return 1 / (1 + np.exp(Lno-Lyes))
+    def L(o, p, r):
+        P =  (1-o) * ( 1. - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1)
+        P +=  o * ( 1. - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
+        return  P
 
-    else:
-        def L(o, p, r):
-            P =  (1-o) * ( 1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1)
-            P +=  o * ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
-            #P = np.log(P)
-            return  P
-
-        Lyes = L(o, p, r)
-        Lno = L(1-o, p, r)
-        return Lyes / (Lyes + Lno)
+    Lyes = L(o, p, r)
+    Lno = L(1-o, p, r)
+    return Lyes / (Lyes + Lno)
 
 def prior(p):
     """
@@ -132,7 +122,7 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
           specified). It represents the infered probability for each given run-length
           hypothesis for the given trial given the past observations.
 
-            - the first axis records the estimated prebabilities
+            - the first axis records the estimated probabilities
             for the different hypothesis of run lengths
             - the second axis is time (trials) - the system has only access to the present
             time, but this is a convenience for plots. Outputs give the inference
