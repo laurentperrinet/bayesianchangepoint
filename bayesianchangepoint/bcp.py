@@ -1,5 +1,4 @@
 # -*- coding: utf8 -*-
-from __future__ import print_function, division
 """
 BBCP: Binomial Bayesian Changepoint Detection
 
