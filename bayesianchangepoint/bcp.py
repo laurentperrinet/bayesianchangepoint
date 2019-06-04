@@ -73,7 +73,7 @@ def likelihood(o, p, r):
     The likelihood of observing o=1 is that of a binomial of
 
         - mean rate of chosing hypothesis "o=1" = (p*r + o)/(r+1)
-        - number of choices where  "o=1" equals to p*r+1
+        - number of choices where  "o=1" equals to p*r+1 and "o=0" equals to (1-p)*r+1
 
     since both likelihood sum to 1, the likelihood of drawing o in the set {0, 1}
     is equal to
@@ -84,9 +84,9 @@ def likelihood(o, p, r):
         P +=  o * ( 1. - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
         return  P
 
-    Lyes = L(o, p, r)
-    Lno = L(1-o, p, r)
-    return Lyes / (Lyes + Lno)
+    L_yes = L(o, p, r)
+    L_no = L(1-o, p, r)
+    return L_yes / (L_yes + L_no)
 
 def prior(p):
     """
@@ -158,7 +158,7 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
     p_bar = np.zeros((max_T, T))
     p_bar[0, 0] = p0
 
-    # matrix of r=alpha+beta in the beta-ditribution
+    # matrix of $r = alpha + beta$ in the beta-ditribution
     r_bar = np.zeros((max_T, T))
     r_bar[0, 0] = r0
 
@@ -173,7 +173,7 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
 
         pi_hat = likelihood(o[t], p_bar[:(t+1), t], r_bar[:(t+1), t])
 
-        if verbose and t < 8:
+        if verbose and t < 10:
             print('time', t, '; obs=', o[t], '; beliefs=', beliefs[:(t+1), t], '; pi_hat=', pi_hat, '; 1-h=', (1-h), '; p_bar=', p_bar[:(t+1), t])
 
         # PREDICTION
@@ -198,8 +198,8 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
         belief = belief / np.sum(belief)
         # record the predicted run-length probability
         beliefs[:(t+2), t+1] = belief
-        if verbose and t < 8:
-            print('Note that at t', t, ', belief', belief[0], '= h = ', h)
+        #if verbose and t < 8:
+        #    print('Note that at t', t, ', belief[0]', belief[0], '= h = ', h)
 
         # 2/ Update the sufficient statistics for each possible run length.
         # the vector of the different run-length at trial t+1
