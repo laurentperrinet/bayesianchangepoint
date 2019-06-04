@@ -1,7 +1,6 @@
 # -*- coding: utf8 -*-
-from __future__ import print_function, division
 """
-BBCP: Binomial Bayesian Changepoint Detection
+BBCP: Binary Bayesian Changepoint Detection detection model
 
     url='https://github.com/laurentperrinet/bayesianchangepoint',
 
@@ -15,7 +14,7 @@ BBCP: Binomial Bayesian Changepoint Detection
     NOTE = "arXiv:0710.3742v1 [stat.ML]"
  }
 
- for a binomial input.
+ for a sequence of binary input data.
 
  adapted from
     url='https://github.com/JackKelly/bayesianchangepoint',
@@ -65,12 +64,13 @@ def switching_binomial_motion(N_trials, N_blocks, tau, seed, Jeffreys=True, N_la
 
 def likelihood(o, p, r):
     """
-    Knowing $p$ and $r$, the sufficient statistics of the beta distribution $B(\alpha, \beta)$:
+    Knowing $p$ and $r$, the sufficient statistics of the beta distribution $B(\alpha, \beta)$ are:
     $$
         alpha = p*r
         beta  = (1-p)*r
     $$
-    the likelihood of observing o=1 is that of a binomial of
+    
+    The likelihood of observing o=1 is that of a binomial of
 
         - mean rate of chosing hypothesis "o=1" = (p*r + o)/(r+1)
         - number of choices where  "o=1" equals to p*r+1
@@ -79,25 +79,14 @@ def likelihood(o, p, r):
     is equal to
 
     """
-    if False:#True:#
-        def logL(o, p, r):
-            logP =  (p*r + o)*np.log(p*r + o)
-            logP +=  ((1-p)*r + 1 - o)*np.log((1-p)*r + 1 - o)
-            return  logP
-        Lyes = logL(o, p, r)
-        Lno = logL(1-o, p, r)
-        return 1 / (1 + np.exp(Lno-Lyes))
+    def L(o, p, r):
+        P =  (1-o) * ( 1. - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1)
+        P +=  o * ( 1. - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
+        return  P
 
-    else:
-        def L(o, p, r):
-            P =  (1-o) * ( 1 - 1 / (p * r + 1) )**(p*r) * ((1-p) * r + 1)
-            P +=  o * ( 1 - 1 / ((1-p) * r + 1) )**((1-p)*r) * (p * r + 1)
-            #P = np.log(P)
-            return  P
-
-        Lyes = L(o, p, r)
-        Lno = L(1-o, p, r)
-        return Lyes / (Lyes + Lno)
+    Lyes = L(o, p, r)
+    Lno = L(1-o, p, r)
+    return Lyes / (Lyes + Lno)
 
 def prior(p):
     """
@@ -133,7 +122,7 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
           specified). It represents the infered probability for each given run-length
           hypothesis for the given trial given the past observations.
 
-            - the first axis records the estimated prebabilities
+            - the first axis records the estimated probabilities
             for the different hypothesis of run lengths
             - the second axis is time (trials) - the system has only access to the present
             time, but this is a convenience for plots. Outputs give the inference
@@ -144,12 +133,11 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
           layer) for any coming trial. Has the same dimension as ``beliefs``.
 
     """
-    if max_T is not None:
-        # unless otherwise specified
-        T = max_T
-    else:
-        # max is by default the total number of observations
-        T = o.size
+    # total number of observations
+    T = o.size
+    if max_T is None:
+        # unless otherwise specified max is by default T
+        max_T = T 
 
     # check parameter range
     assert(0 <= h <= 1)
@@ -157,7 +145,7 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
 
     # First, setup the matrix that will hold our beliefs about the current
     # run lengths.  We'll initialize it all to zero at first.
-    beliefs = np.zeros((T, T))
+    beliefs = np.zeros((max_T, T))
 
     # INITIALIZATION
     # At time t=0, we actually have complete knowledge about the possible run
@@ -167,21 +155,17 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
 
     # Track the current set of parameters.  These start out at the prior and
     # we accumulate data as we proceed.
-    p_bar = np.zeros((T, T))
+    p_bar = np.zeros((max_T, T))
     p_bar[0, 0] = p0
 
     # matrix of r=alpha+beta in the beta-ditribution
-    r_bar = np.zeros((T, T))
+    r_bar = np.zeros((max_T, T))
     r_bar[0, 0] = r0
 
     # Loop over the data
     for t in range(T-1):
         # EVALUATION
-        # we use the knowledge at time t to evaluate the likelihood of the new datum o[t]
-
-        # Evaluate the predictive distribution for the next datum assuming that
-        # we know the sufficient statistics of the pdf that generated the datum.
-        # This probability is computed over the set of possible run-lengths.
+        # we use the knowledge at time t to evaluate the likelihood of each node given new datum o[t]
         pi_hat = likelihood(o[t], p_bar[:(t+1), t], r_bar[:(t+1), t])
 
         if verbose and t < 8:
@@ -191,6 +175,11 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
         # we use prior knowledge about the generative model to predict the state
         # of the system at time t+1
 
+        # Evaluate the predictive distribution for the next datum assuming that
+        # we know the sufficient statistics of the pdf that generated the datum.
+        # This probability is computed over the set of possible run-lengths.
+        
+        
         # 1/ Evaluate the growth probabilities at time t+1
         # it is a vector for the belief of the different run-length
         # knowing the datum observed until time t
