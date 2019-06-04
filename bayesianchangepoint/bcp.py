@@ -69,7 +69,7 @@ def likelihood(o, p, r):
         alpha = p*r
         beta  = (1-p)*r
     $$
-    
+
     The likelihood of observing o=1 is that of a binomial of
 
         - mean rate of chosing hypothesis "o=1" = (p*r + o)/(r+1)
@@ -137,7 +137,7 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
     T = o.size
     if max_T is None:
         # unless otherwise specified max is by default T
-        max_T = T 
+        max_T = T
 
     # check parameter range
     assert(0 <= h <= 1)
@@ -162,10 +162,15 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
     r_bar = np.zeros((max_T, T))
     r_bar[0, 0] = r0
 
-    # Loop over the data
+    # Loop over the data from trial t=0 to t=T-1
     for t in range(T-1):
         # EVALUATION
         # we use the knowledge at time t to evaluate the likelihood of each node given new datum o[t]
+
+        # For this, we evaluate the predictive distribution for the next datum
+        # knowing the sufficient statistics of the pdf that generated the datum.
+        # This probability is computed for each possible run-length.
+
         pi_hat = likelihood(o[t], p_bar[:(t+1), t], r_bar[:(t+1), t])
 
         if verbose and t < 8:
@@ -175,11 +180,6 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
         # we use prior knowledge about the generative model to predict the state
         # of the system at time t+1
 
-        # Evaluate the predictive distribution for the next datum assuming that
-        # we know the sufficient statistics of the pdf that generated the datum.
-        # This probability is computed over the set of possible run-lengths.
-        
-        
         # 1/ Evaluate the growth probabilities at time t+1
         # it is a vector for the belief of the different run-length
         # knowing the datum observed until time t
@@ -196,14 +196,14 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
         # if verbose and t <8: print('belief=', belief)
         # Renormalize the run length probabilities by calculating total evidence
         belief = belief / np.sum(belief)
-        # record this vector
+        # record the predicted run-length probability
         beliefs[:(t+2), t+1] = belief
         if verbose and t < 8:
             print('Note that at t', t, ', belief', belief[0], '= h = ', h)
 
         # 2/ Update the sufficient statistics for each possible run length.
         # the vector of the different run-length at trial t+1
-        # it has size t+2 to represent all possible run lengths
+        # it has size t+2 to represent all possible run lengths from r=0 to r=t+1
         r_bar[1:(t+2), t+1] = r_bar[:(t+1), t] + 1
         r_bar[0, t+1] = r0
         # the corresponding mean
