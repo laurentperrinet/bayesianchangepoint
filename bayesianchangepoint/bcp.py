@@ -100,7 +100,7 @@ def prior(p):
 def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
     """
     Args:
-      * o (np.ndarray): data has given in a sequence of observations as a
+      * o (np.ndarray): data is given in a sequence of observations as a
         function of (discrete) time (or trials). The total number of trials
         is T.
 
@@ -116,11 +116,11 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
         uniform prior.
 
     Output:
-      * beliefs (np.ndarray): beliefs about the run lengths at a given trial, the first
-          axis (one row) is the probability vector at any given time. This vector
+      * beliefs (np.ndarray): predicted beliefs about the run lengths at a given
+          trial, the first axis (one row) is the probability vector. This vector
           is of length at maximum T (the maximal run length or ``max_T`` if
-          specified). It represents the infered probability for each given run-length
-          hypothesis for the given trial given the past observations.
+          specified). It represents the predicted probability for each given run-length
+          hypothesis at the given trial given the past observations.
 
             - the first axis records the estimated probabilities
             for the different hypothesis of run lengths
@@ -129,8 +129,11 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
             for the current trial, before the actual observation.
 
       * p_bar (np.ndarray): mean of the prediction about p. Given the run-lengths r,
-          this gives the sufficient statistics for our belief about p (second
-          layer) for any coming trial. Has the same dimension as ``beliefs``.
+            this gives the sufficient statistics for our belief about p (second
+            layer) before observing o[t]. Has the same dimension as ``beliefs``.
+
+      * r_bar (np.ndarray): estimated sample size at any given the run-lengths r.
+            Has the same dimension as ``beliefs``.
 
     """
     # total number of observations
@@ -140,6 +143,7 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
         max_T = T
 
     # check parameter range
+    assert(T <= max_T)
     assert(0 <= h <= 1)
     assert(0 <= p0 <= 1)
 
@@ -174,7 +178,7 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
         pi_hat = likelihood(o[t], p_bar[:(t+1), t], r_bar[:(t+1), t])
 
         if verbose and t < 10:
-            print('time', t, '; obs=', o[t], '; beliefs=', beliefs[:(t+1), t], '; pi_hat=', pi_hat, '; 1-h=', (1-h), '; p_bar=', p_bar[:(t+1), t])
+            print('time', t, '; obs=', o[t], '; beliefs=', beliefs[:(t+1), t], '; pi_hat=', pi_hat, '; 1-h=', (1-h), '; p_bar=', p_bar[:(t+1), t], '; r_bar=', r_bar[:(t+1), t])
 
         # PREDICTION
         # we use prior knowledge about the generative model to predict the state
@@ -201,20 +205,26 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
         #if verbose and t < 8:
         #    print('Note that at t', t, ', belief[0]', belief[0], '= h = ', h)
 
-        # 2/ Update the sufficient statistics for each possible run length.
-        # the vector of the different run-length at trial t+1
-        # it has size t+2 to represent all possible run lengths from r=0 to r=t+1
+        # 2/ Update the sufficient statistics for each possible run length r>=0.
+        # The two vector for the different run-length at trial t+1
+        # represent the parameters of the beta distribution having observed
+        # data from t=0 to t (that is, knowing r, from t-r to t)
+        # at trial t+1, it has size t+2 to represent all possible run lengths
+        # from r=0 to r=t+1
         r_bar[1:(t+2), t+1] = r_bar[:(t+1), t] + 1
         r_bar[0, t+1] = r0
-        # the corresponding mean
+        # the corresponding mean as
+        # a/ prediction
         p_bar[1:(t+2), t+1] = p_bar[:(t+1), t] * r_bar[:(t+1), t] / r_bar[1:(t+2), t+1]
+        # p.37 de 2018-02-12 journal club bayesian changepoint chloe.pdf
+        # b/ innovation
         p_bar[1:(t+2), t+1] += o[t] / r_bar[1:(t+2), t+1]
         p_bar[0, t+1] = p0
 
     return p_bar, r_bar, beliefs
 
 
-def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40):
+def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40, o=None):
     """
     Retrieves a readout given a probabilistic representation
 
@@ -225,12 +235,16 @@ def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40):
     - 'fixed': considers a fixed Window
 
     """
-    modes = ['expectation', 'max', 'mean', 'fixed', 'leaky', 'hindsight']
+    modes = ['pred', 'expectation', 'max', 'mean', 'fixed', 'leaky', 'hindsight']
     N_r, N_trials = beliefs.shape
     if mode in modes:
         if mode == 'mean':
             p_hat = np.sum(p_bar * beliefs, axis=0)
             r_hat = np.sum(r_bar * beliefs, axis=0)
+        elif mode == 'pred':
+            assert(o is not None)
+            p_hat = (likelihood(o[None, :], p_bar, r_bar)*beliefs).sum(axis=0)
+            r_hat = (r_bar * beliefs).sum(axis=0)
         elif mode == 'expectation':
             r_hat = np.sum(r_bar * beliefs, axis=0)
             p_hat = np.sum(p_bar * r_bar * beliefs, axis=0)
@@ -292,7 +306,7 @@ def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='mean', fixed_window_s
     if p_true is not None:
         axs[0].step(range(N_trials), p_true, lw=3, alpha=.4, c='b')
 
-    p_hat, r_hat = readout(p_bar, r_bar, beliefs, mode=mode, fixed_window_size=fixed_window_size, p0=p0)
+    p_hat, r_hat = readout(p_bar, r_bar, beliefs, mode=mode, fixed_window_size=fixed_window_size, p0=p0, o=o)
 
     from scipy.stats import beta
     p_low, p_sup = np.zeros_like(p_hat), np.zeros_like(p_hat)
