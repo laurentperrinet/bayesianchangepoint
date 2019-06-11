@@ -224,7 +224,7 @@ def inference(o, h, p0=.5, r0=1., verbose=False, max_T=None):
     return p_bar, r_bar, beliefs
 
 
-def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40, o=None):
+def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40):
     """
     Retrieves a readout given a probabilistic representation
 
@@ -235,16 +235,19 @@ def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40, o=N
     - 'fixed': considers a fixed Window
 
     """
-    modes = ['pred', 'expectation', 'max', 'mean', 'fixed', 'leaky', 'hindsight']
+    modes = ['expectation', 'max', 'mean', 'fixed', 'leaky', 'hindsight']
     N_r, N_trials = beliefs.shape
+    if mode == 'leaky':
+        beliefs = np.zeros_like(p_bar)
+        for i in range(N_trials):
+            beliefs[:(i+1), i] = (1-1/fixed_window_size)**np.arange(i+1)
+        beliefs /= beliefs.sum(axis=0)
+
+
     if mode in modes:
         if mode == 'mean':
             p_hat = np.sum(p_bar * beliefs, axis=0)
             r_hat = np.sum(r_bar * beliefs, axis=0)
-        elif mode == 'pred':
-            assert(o is not None)
-            p_hat = (likelihood(o[None, :], p_bar, r_bar)*beliefs).sum(axis=0)
-            r_hat = (r_bar * beliefs).sum(axis=0)
         elif mode == 'expectation':
             r_hat = np.sum(r_bar * beliefs, axis=0)
             p_hat = np.sum(p_bar * r_bar * beliefs, axis=0)
@@ -257,11 +260,8 @@ def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40, o=N
             p_hat = np.array([p_bar[r_[i], i] for i in range(N_trials)])
             r_hat = np.array([r_bar[r_[i], i] for i in range(N_trials)])
         elif mode == 'leaky':
-            beliefs_ = (1-1/fixed_window_size)**np.arange(N_r)
-            beliefs_ /= beliefs_.sum()
-            beliefs_ = beliefs_[:, None]
-            p_hat = np.sum(p_bar * r_bar * beliefs_, axis=0)
-            r_hat = np.sum(r_bar * beliefs_, axis=0)
+            p_hat = np.sum(p_bar * r_bar * beliefs, axis=0)
+            r_hat = np.sum(r_bar * beliefs, axis=0)
             p_hat /= r_hat
         elif mode == 'fixed':
             r_ = np.zeros(N_trials, dtype=np.int)
@@ -294,35 +294,37 @@ def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40, o=N
         return None
 
 
-def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='mean', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120, eps=1.e-12, margin=0.01, p0=.5, N_ticks=5):
+def plot_inference(o, p_true, p_bar, r_bar, beliefs, mode='mean', fixed_window_size=40, fig=None, axs=None, fig_width=13, max_run_length=120, eps=1.e-12, margin=0.01, p0=.5, N_ticks=5, q=.95):
     import matplotlib.pyplot as plt
     N_r, N_trials = beliefs.shape
     # N_trials = o.size
+
+    if mode == 'leaky': # HACK : copy / paste
+        beliefs = np.zeros_like(p_bar)
+        for i in range(N_trials):
+            beliefs[:(i+1), i] = (1-1/fixed_window_size)**np.arange(i+1)
+        beliefs /= beliefs.sum(axis=0)
+        # axs[1].imshow(np.log((beliefs_*np.ones(N_trials))[:max_run_length, :] + eps))
+
     if fig is None:
-        fig_width = fig_width
         fig, axs = plt.subplots(2, 1, figsize=(fig_width, fig_width/1.6180), sharex=True)
 
     axs[0].step(range(N_trials), o, lw=1, alpha=.9, c='k')
     if p_true is not None:
         axs[0].step(range(N_trials), p_true, lw=3, alpha=.4, c='b')
 
-    p_hat, r_hat = readout(p_bar, r_bar, beliefs, mode=mode, fixed_window_size=fixed_window_size, p0=p0, o=o)
+    p_hat, r_hat = readout(p_bar, r_bar, beliefs, mode=mode, fixed_window_size=fixed_window_size, p0=p0)
 
     from scipy.stats import beta
     p_low, p_sup = np.zeros_like(p_hat), np.zeros_like(p_hat)
     for i_trial in range(N_trials):
-        p_low[i_trial], p_sup[i_trial] = beta.ppf([.05, .95], a=p_hat[i_trial]*r_hat[i_trial], b=(1-p_hat[i_trial])*r_hat[i_trial])
+        p_low[i_trial], p_sup[i_trial] = beta.ppf([1-q, q], a=p_hat[i_trial]*r_hat[i_trial], b=(1-p_hat[i_trial])*r_hat[i_trial])
 
     axs[0].plot(range(N_trials), p_hat, lw=1, alpha=.9, c='r')
     axs[0].plot(range(N_trials), p_sup, 'r--', lw=1, alpha=.9)
     axs[0].plot(range(N_trials), p_low, 'r--', lw=1, alpha=.9)
     if mode == 'fixed':
         axs[1].imshow(np.log(beliefs[:max_run_length, :]*0. + eps))
-    elif mode == 'leaky':
-        beliefs_ = np.exp(-np.arange(N_r) / fixed_window_size)
-        beliefs_ /= beliefs_.sum()
-        beliefs_ = beliefs_[:, None]
-        axs[1].imshow(np.log((beliefs_*np.ones(N_trials))[:max_run_length, :] + eps))
     else:
         axs[1].imshow(np.log(beliefs[:max_run_length, :] + eps))
     axs[1].plot(range(N_trials), r_hat, lw=1, alpha=.9, c='r')
