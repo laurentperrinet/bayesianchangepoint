@@ -235,7 +235,7 @@ def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40):
     - 'fixed': considers a fixed Window
 
     """
-    modes = ['expectation', 'max', 'mean', 'fixed', 'leaky', 'hindsight']
+    modes = ['mean', 'leaky', 'expectation', 'max', 'fixed', 'hindsight']
     N_r, N_trials = beliefs.shape
     if mode == 'leaky':
         beliefs = np.zeros_like(p_bar)
