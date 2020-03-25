@@ -19,12 +19,21 @@ URL = "http://arxiv.org/abs/0710.3742"
 }
 ````
 
+In a nutshell, you observe a sequence of binary trials (ON/OFF, Left/Right, 0/1, ...), which have an underlying structure for their cause:
+
+![BSM](bsm.png)
+
+The goal is to retrieve the moments of the switches which define epochs and the values of the probability biases within each epoch:
+
 ![BBCP](bbcp.png)
 
-* adapted from url='https://github.com/JackKelly/bayesianchangepoint', by Copyright 2013 Jack Kelly (aka Daniel) jack@jack-kelly.com
-author='Jack Kelly', author_email='jack@jack-kelly.com'. This code is based on the beautifully commented
-[MATLAB implementation](http://www.inference.phy.cam.ac.uk/rpa23/changepoint.php)
-that was provided by Ryan Adams (no longer available online). http://hips.seas.harvard.edu/content/bayesian-online-changepoint-detection
+try it out!
+-----------
+
+* check out some [basics](notebooks/A_basics.ipynb)
+* perform [inference on experimental data](notebooks/B_test_experimental_data.ipynb)
+* fit best [hazard rates](notebooks/C_test_hazardrate.ipynb)
+* some fun with [twitter data](notebooks/D_test_experimental_data-tweets.ipynb)
 
 * this code was used in the following publication: ["Humans adapt their anticipatory eye movements to the volatility of visual motion properties" (2020) by Pasturel, Montagnini and Prrinet](https://laurentperrinet.github.io/publication/pasturel-montagnini-perrinet-20/)
 
@@ -61,3 +70,11 @@ algorithm
  * $ν^{(r+1)}_{t+1} = ν^{(r)}_{t} +1$, $χ^{(r+1)}_{t+1} = χ^{(r)}_{t} + u(x_t)$
 9. Perform Prediction $P (x_{t+1} | x_{1:t}) =   P (x_{t+1}|x_{1:t} , r_t) P (r_t|x_{1:t})$
 10. go to (2)
+
+credits
+-------
+
+* adapted from url='https://github.com/JackKelly/bayesianchangepoint', by Copyright 2013 Jack Kelly (aka Daniel) jack@jack-kelly.com
+author='Jack Kelly', author_email='jack@jack-kelly.com'. This code is based on the beautifully commented
+[MATLAB implementation](http://www.inference.phy.cam.ac.uk/rpa23/changepoint.php)
+that was provided by Ryan Adams (no longer available online). http://hips.seas.harvard.edu/content/bayesian-online-changepoint-detection
