@@ -21,19 +21,28 @@ URL = "http://arxiv.org/abs/0710.3742"
 
 ![BBCP](bbcp.png)
 
-adapted from
-url='https://github.com/JackKelly/bayesianchangepoint',
-
-by
-Copyright 2013 Jack Kelly (aka Daniel) jack@jack-kelly.com
-author='Jack Kelly',
-author_email='jack@jack-kelly.com',
-
-This code is based on the beautifully commented
+* adapted from url='https://github.com/JackKelly/bayesianchangepoint', by Copyright 2013 Jack Kelly (aka Daniel) jack@jack-kelly.com
+author='Jack Kelly', author_email='jack@jack-kelly.com'. This code is based on the beautifully commented
 [MATLAB implementation](http://www.inference.phy.cam.ac.uk/rpa23/changepoint.php)
-that was provided by Ryan Adams (no longer available online).
+that was provided by Ryan Adams (no longer available online). http://hips.seas.harvard.edu/content/bayesian-online-changepoint-detection
 
-http://hips.seas.harvard.edu/content/bayesian-online-changepoint-detection
+* this code was used in the following publication: ["Humans adapt their anticipatory eye movements to the volatility of visual motion properties" (2020) by Pasturel, Montagnini and Prrinet](https://laurentperrinet.github.io/publication/pasturel-montagnini-perrinet-20/)
+
+````
+@article{PasturelMontagniniPerrinet20,
+    title = {Humans adapt their anticipatory eye movements to the volatility of visual motion properties},
+    journal = {PLoS Computational Biology},
+    author = {Pasturel, Chloé and Montagnini, Anna and Perrinet, Laurent U},
+    date = {2020-01-26},
+    doi = {10.1101/784116},
+    keywords = {motion anticipation},
+    preprint = {https://www.biorxiv.org/content/10.1101/784116v2},
+    url = {https://www.biorxiv.org/content/10.1101/784116v2},
+    url_code = {https://github.com/laurentperrinet/PasturelMontagniniPerrinet2020},
+    url_pdf = {https://www.biorxiv.org/content/biorxiv/early/2019/09/26/784116.full-text.pdf},
+    year = {2020}
+}
+````
 
 algorithm
 ---------
