@@ -72,7 +72,7 @@ def likelihood(o, p, r):
 
     The likelihood of observing o=1 is that of a binomial of
 
-        - mean rate of chosing hypothesis "o=1" = (p*r + o)/(r+1)
+        - mean rate of choosing hypothesis "o=1" = (p*r + o)/(r+1)
         - number of choices where  "o=1" equals to p*r+1 and "o=0" equals to (1-p)*r+1
 
     since both likelihood sum to 1, the likelihood of drawing o in the set {0, 1}
@@ -240,9 +240,8 @@ def readout(p_bar, r_bar, beliefs, mode='mean', p0=.5, fixed_window_size=40):
     if mode == 'leaky':
         beliefs = np.zeros_like(p_bar)
         for i in range(N_trials):
-            beliefs[:(i+1), i] = (1-1/fixed_window_size)**np.arange(i+1)
+            beliefs[:(i+1), i] = (1-1/fixed_window_size)**(np.arange(i+1))
         beliefs /= beliefs.sum(axis=0)
-
 
     if mode in modes:
         if mode == 'mean':
