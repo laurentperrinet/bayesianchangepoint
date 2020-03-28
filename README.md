@@ -71,6 +71,15 @@ algorithm
 9. Perform Prediction $P (x_{t+1} | x_{1:t}) =   P (x_{t+1}|x_{1:t} , r_t) P (r_t|x_{1:t})$
 10. go to (2)
 
+
+other applications
+------------------
+
+An application is to analyze long sequences of binary events, such as detailed in the [following example](notebooks/D_test_experimental_data-tweets.ipynb):
+
+![Trump Tweets](trumpets.png)
+
+
 credits
 -------
 
