@@ -45,8 +45,8 @@ try it out!
     date = {2020-01-26},
     doi = {10.1101/784116},
     keywords = {motion anticipation},
-    preprint = {https://www.biorxiv.org/content/10.1101/784116v2},
-    url = {https://www.biorxiv.org/content/10.1101/784116v2},
+    preprint = {https://www.biorxiv.org/content/10.1101/784116v3},
+    url = {https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007438},
     url_code = {https://github.com/laurentperrinet/PasturelMontagniniPerrinet2020},
     url_pdf = {https://www.biorxiv.org/content/biorxiv/early/2019/09/26/784116.full-text.pdf},
     year = {2020}
